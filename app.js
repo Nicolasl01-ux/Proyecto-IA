@@ -322,10 +322,14 @@ function updateUserInterface() {
   const sidebarApto = document.getElementById('sidebar-apto-name');
   const sidebarTerm = document.getElementById('sidebar-apto-term');
   const sidebarUni = document.getElementById('sidebar-user-uni');
+  const sidebarName = document.getElementById('sidebar-user-name');
+  const sidebarAvatar = document.getElementById('sidebar-user-avatar');
 
   if (sidebarApto) sidebarApto.textContent = user.apartment;
   if (sidebarTerm) sidebarTerm.textContent = `${user.address.split(',')[0]} • ${user.term}`;
   if (sidebarUni) sidebarUni.textContent = user.university;
+  if (sidebarName) sidebarName.textContent = user.name;
+  if (sidebarAvatar) sidebarAvatar.textContent = user.initials;
 
   const dashBannerTitle = document.getElementById('dashboard-banner-title');
   const dashBannerRadicado = document.getElementById('dashboard-banner-radicado');
@@ -366,11 +370,22 @@ function initRouter() {
     navLinks.forEach(link => {
       const linkPath = link.getAttribute('data-path');
       if (linkPath === targetPath) {
-        link.classList.add('bg-primary-container', 'text-on-primary', 'font-semibold');
-        link.classList.remove('text-on-surface-variant', 'hover:bg-surface-container-high', 'hover:text-on-surface');
+        link.classList.add('bg-gradient-to-r', 'from-indigo-600', 'to-violet-600', 'text-white', 'font-bold', 'shadow-md', 'shadow-indigo-500/25');
+        link.classList.remove('text-slate-600', 'hover:bg-indigo-50/70', 'hover:text-indigo-700', 'font-semibold');
       } else {
-        link.classList.remove('bg-primary-container', 'text-on-primary', 'font-semibold');
-        link.classList.add('text-on-surface-variant', 'hover:bg-surface-container-high', 'hover:text-on-surface');
+        link.classList.remove('bg-gradient-to-r', 'from-indigo-600', 'to-violet-600', 'text-white', 'font-bold', 'shadow-md', 'shadow-indigo-500/25');
+        link.classList.add('text-slate-600', 'hover:bg-indigo-50/70', 'hover:text-indigo-700', 'font-semibold');
+      }
+    });
+
+    const mobileLinks = document.querySelectorAll('nav.md\\:hidden a[data-path]');
+    mobileLinks.forEach(mLink => {
+      if (mLink.getAttribute('data-path') === targetPath) {
+        mLink.classList.add('text-indigo-600');
+        mLink.classList.remove('text-slate-500');
+      } else {
+        mLink.classList.remove('text-indigo-600');
+        mLink.classList.add('text-slate-500');
       }
     });
 
@@ -407,11 +422,11 @@ function initDashboardView() {
   filterButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       filterButtons.forEach(b => {
-        b.classList.remove('bg-primary', 'text-on-primary');
-        b.classList.add('bg-surface-container-lowest', 'text-on-surface-variant');
+        b.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+        b.classList.add('bg-white', 'text-slate-600', 'border', 'border-slate-200');
       });
-      btn.classList.add('bg-primary', 'text-on-primary');
-      btn.classList.remove('bg-surface-container-lowest', 'text-on-surface-variant');
+      btn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+      btn.classList.remove('bg-white', 'text-slate-600');
       
       const filter = btn.getAttribute('data-filter');
       renderDashboardCards(filter, zoneSelect ? zoneSelect.value : 'all');
@@ -420,7 +435,7 @@ function initDashboardView() {
 
   if (zoneSelect) {
     zoneSelect.addEventListener('change', () => {
-      const activeTypeBtn = document.querySelector('.filter-type-btn.bg-primary');
+      const activeTypeBtn = document.querySelector('.filter-type-btn.bg-indigo-600');
       const activeType = activeTypeBtn ? activeTypeBtn.getAttribute('data-filter') : 'all';
       renderDashboardCards(activeType, zoneSelect.value);
     });
@@ -449,75 +464,95 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
 
   if (filtered.length === 0) {
     container.innerHTML = `
-      <div class="col-span-1 md:col-span-2 lg:col-span-3 text-center py-12 bg-surface-container-low rounded-2xl border border-dashed border-outline-variant p-6">
-        <span class="material-symbols-outlined text-4xl text-outline mb-2">find_in_page</span>
-        <p class="font-bold text-on-surface">No hay incidencias registradas para este apartamento.</p>
-        <p class="text-xs text-on-surface-variant mt-1 mb-4">Puedes registrar el primer daño ahora mismo con una foto.</p>
-        <a href="#nuevo-registro" data-path="nuevo-registro" class="inline-flex items-center gap-1.5 bg-primary text-on-primary px-4 py-2 rounded-xl text-xs font-bold shadow">
-          <span class="material-symbols-outlined text-sm">add_a_photo</span>
-          <span>Registrar Daño</span>
+      <div class="col-span-1 md:col-span-2 lg:col-span-3 text-center py-16 bg-white rounded-3xl border-2 border-dashed border-slate-200 p-8 shadow-sm">
+        <div class="w-16 h-16 rounded-3xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3 shadow-inner">
+          <span class="material-symbols-outlined text-3xl">add_photo_alternate</span>
+        </div>
+        <h4 class="font-extrabold text-base text-slate-900">No hay incidencias registradas con este filtro</h4>
+        <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto mb-5 leading-relaxed">No se encontraron problemas bajo la tipología o zona seleccionada. Puedes registrar un nuevo hallazgo con foto en cualquier momento.</p>
+        <a href="#nuevo-registro" data-path="nuevo-registro" class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white px-5 py-3 rounded-2xl text-xs font-extrabold shadow-md shadow-indigo-500/25 active:scale-95 transition-all">
+          <span class="material-symbols-outlined text-base">add_a_photo</span>
+          <span>+ Registrar Nuevo Daño</span>
         </a>
       </div>
     `;
     return;
   }
 
+  const typologyMeta = {
+    'humedad': { label: 'Humedad', icon: 'water_drop', pill: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
+    'grietas': { label: 'Grieta', icon: 'broken_image', pill: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500' },
+    'plomeria': { label: 'Plomería', icon: 'plumbing', pill: 'bg-teal-50 text-teal-700 border-teal-200', dot: 'bg-teal-500' },
+    'electrico': { label: 'Eléctrico', icon: 'electric_bolt', pill: 'bg-amber-50 text-amber-800 border-amber-200', dot: 'bg-amber-500' },
+    'acabados': { label: 'Cerrajería / Acabados', icon: 'lock', pill: 'bg-purple-50 text-purple-700 border-purple-200', dot: 'bg-purple-500' }
+  };
+
   container.innerHTML = filtered.map(d => {
     const followUpsCount = d.updates ? d.updates.length : 0;
     const totalPhotos = 1 + followUpsCount;
     const latestDate = followUpsCount > 0 ? d.updates[followUpsCount - 1].dateFormatted : d.initialDateFormatted;
     
-    const severityColors = {
-      'Alta': 'bg-error-container text-error',
-      'Media': 'bg-secondary-fixed text-secondary',
-      'Baja': 'bg-surface-container-highest text-on-surface',
-      'Crítica': 'bg-error text-on-error'
+    const severityBadges = {
+      'Crítica': 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-sm',
+      'Alta': 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-sm',
+      'Media': 'bg-amber-100 text-amber-950 border border-amber-300 font-extrabold',
+      'Baja': 'bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold'
     };
 
-    const severityClass = severityColors[d.severity] || 'bg-surface-container text-primary';
+    const severityClass = severityBadges[d.severity] || 'bg-slate-100 text-slate-800 font-bold';
+    const typeInfo = typologyMeta[d.typology] || { label: d.typologyLabel || 'Incidencia', icon: 'warning', pill: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-500' };
 
     return `
-      <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+      <div class="bg-white border border-slate-200/90 rounded-3xl overflow-hidden shadow-sm card-hover-effect flex flex-col justify-between group">
         <div>
-          <div class="relative w-full h-48 bg-surface-container-high overflow-hidden">
+          <div class="relative w-full h-52 bg-slate-100 overflow-hidden">
             <img src="${d.initialImage}" alt="${d.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-            <div class="absolute top-2 left-2 bg-primary/90 backdrop-blur-md text-on-primary px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 shadow">
-              <span class="material-symbols-outlined text-xs">verified</span>
+            
+            <div class="absolute top-3 left-3 bg-slate-900/85 backdrop-blur-md text-white px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
               <span>${d.id}</span>
             </div>
-            <div class="absolute top-2 right-2 ${severityClass} px-2.5 py-1 rounded text-xs font-bold shadow">
+
+            <div class="absolute top-3 right-3 ${severityClass} px-3 py-1 rounded-xl text-xs font-extrabold shadow-md">
               ${d.severity}
             </div>
-            <div class="absolute bottom-2 left-2 bg-inverse-surface/80 text-inverse-on-surface px-2 py-0.5 rounded text-[11px] flex items-center gap-1">
-              <span class="material-symbols-outlined text-xs">location_on</span>
+
+            <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-md text-white px-2.5 py-1 rounded-xl text-[11px] font-semibold flex items-center gap-1 shadow-sm">
+              <span class="material-symbols-outlined text-xs text-indigo-300">location_on</span>
               <span>${d.room}</span>
             </div>
-            <div class="absolute bottom-2 right-2 bg-inverse-surface/80 text-inverse-on-surface px-2 py-0.5 rounded text-[11px] flex items-center gap-1">
-              <span class="material-symbols-outlined text-xs">photo_camera</span>
-              <span>${totalPhotos} fotos</span>
+
+            <div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-md text-white px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 shadow-sm">
+              <span class="material-symbols-outlined text-xs text-amber-300">photo_library</span>
+              <span>${totalPhotos} ${totalPhotos === 1 ? 'foto' : 'fotos'}</span>
             </div>
           </div>
 
-          <div class="p-4 flex flex-col gap-1">
+          <div class="p-5 flex flex-col gap-2">
             <div class="flex items-center justify-between">
-              <span class="text-[11px] font-bold uppercase text-secondary tracking-wide">${d.typologyLabel}</span>
-              <span class="text-[11px] text-on-surface-variant">${latestDate}</span>
+              <span class="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-lg border ${typeInfo.pill}">
+                <span class="w-1.5 h-1.5 rounded-full ${typeInfo.dot}"></span>
+                ${typeInfo.label}
+              </span>
+              <span class="text-[11px] font-medium text-slate-500">${latestDate}</span>
             </div>
-            <h3 class="text-sm font-bold text-primary group-hover:text-primary-container transition-colors line-clamp-1 mt-0.5">
+
+            <h3 class="text-sm font-extrabold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1 mt-0.5">
               ${d.title}
             </h3>
-            <p class="text-xs text-on-surface-variant line-clamp-2 mt-1">
+            
+            <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed">
               ${d.initialNote}
             </p>
           </div>
         </div>
 
-        <div class="p-4 pt-0 border-t border-outline-variant/20 mt-2 flex items-center justify-between gap-2">
-          <button onclick="openTimelineFor('${d.id}')" class="flex-1 inline-flex items-center justify-center gap-1 bg-surface-container-low hover:bg-surface-container text-primary py-2 px-3 rounded-xl text-xs font-bold transition-colors">
-            <span class="material-symbols-outlined text-sm">history_edu</span>
+        <div class="p-5 pt-0 border-t border-slate-100 mt-2 flex items-center justify-between gap-2.5">
+          <button onclick="openTimelineFor('${d.id}')" class="flex-1 inline-flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all border border-slate-200">
+            <span class="material-symbols-outlined text-sm text-indigo-600">history_edu</span>
             <span>Ver Evolución</span>
           </button>
-          <button onclick="openFollowUpModal('${d.id}')" class="inline-flex items-center justify-center gap-1 bg-primary hover:bg-primary-container text-on-primary py-2 px-3 rounded-xl text-xs font-bold transition-colors shadow-sm" title="Añadir foto de seguimiento (RF-02)">
+          <button onclick="openFollowUpModal('${d.id}')" class="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-500/20 active:scale-95" title="Añadir foto de seguimiento (RF-02)">
             <span class="material-symbols-outlined text-sm">add_a_photo</span>
             <span>+ Foto</span>
           </button>
@@ -615,11 +650,11 @@ function initNewDamageForm() {
   typologyChips.forEach(chip => {
     chip.addEventListener('click', () => {
       typologyChips.forEach(c => {
-        c.classList.remove('bg-primary', 'text-on-primary', 'font-bold');
-        c.classList.add('bg-surface-container-low', 'text-on-surface-variant');
+        c.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'shadow-md', 'shadow-indigo-500/20', 'font-extrabold');
+        c.classList.add('bg-slate-50', 'text-slate-700', 'border-slate-200', 'hover:bg-slate-100', 'font-bold');
       });
-      chip.classList.add('bg-primary', 'text-on-primary', 'font-bold');
-      chip.classList.remove('bg-surface-container-low', 'text-on-surface-variant');
+      chip.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'shadow-md', 'shadow-indigo-500/20', 'font-extrabold');
+      chip.classList.remove('bg-slate-50', 'text-slate-700', 'border-slate-200', 'hover:bg-slate-100');
       selectedTypology = chip.getAttribute('data-type');
       selectedTypologyLabel = chip.querySelector('span:last-child')?.textContent || selectedTypology;
     });
@@ -747,25 +782,31 @@ function renderTimelineView(damageId) {
       }))
     ];
 
-    timelineNodesContainer.innerHTML = allEvents.map((evt, idx) => `
-      <div class="relative pl-8 pb-8 border-l-2 ${idx === allEvents.length - 1 ? 'border-transparent' : 'border-primary-fixed'}">
-        <div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary ring-4 ring-primary-fixed/40"></div>
-        <div class="bg-surface-container-low p-4 rounded-2xl shadow-sm flex flex-col md:flex-row gap-4 items-start">
-          <img src="${evt.image}" alt="${evt.tag}" class="w-full md:w-44 h-32 object-cover rounded-xl shadow-sm flex-shrink-0" />
-          <div class="flex-1 flex flex-col gap-1">
-            <div class="flex flex-wrap items-center justify-between gap-1">
-              <span class="text-xs font-bold text-secondary uppercase tracking-wider">${evt.tag}</span>
-              <span class="text-[11px] text-on-surface-variant">${evt.date}</span>
-            </div>
-            <p class="text-xs text-on-surface font-medium mt-1 leading-relaxed">${evt.note}</p>
-            <div class="flex items-center gap-2 mt-2">
-              <span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface text-[10px] font-bold">${evt.dimensions}</span>
-              <span class="px-2 py-0.5 rounded bg-primary-fixed text-primary text-[10px] font-bold">Severidad: ${evt.severity}</span>
+    timelineNodesContainer.innerHTML = allEvents.map((evt, idx) => {
+      const isInitial = idx === 0;
+      const dotColor = isInitial ? 'bg-indigo-600 ring-indigo-200' : 'bg-amber-500 ring-amber-200';
+      const tagColor = isInitial ? 'text-indigo-700 bg-indigo-50 border-indigo-200' : 'text-amber-800 bg-amber-50 border-amber-200';
+
+      return `
+        <div class="relative pl-8 pb-8 border-l-2 ${idx === allEvents.length - 1 ? 'border-transparent' : 'border-indigo-200'}">
+          <div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full ${dotColor} ring-4"></div>
+          <div class="bg-white border border-slate-200/90 p-5 rounded-2xl shadow-sm flex flex-col md:flex-row gap-4 items-start card-hover-effect">
+            <img src="${evt.image}" alt="${evt.tag}" class="w-full md:w-48 h-36 object-cover rounded-xl shadow-sm flex-shrink-0" />
+            <div class="flex-1 flex flex-col gap-1.5">
+              <div class="flex flex-wrap items-center justify-between gap-1">
+                <span class="text-xs font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-lg border ${tagColor}">${evt.tag}</span>
+                <span class="text-[11px] font-semibold text-slate-500">${evt.date}</span>
+              </div>
+              <p class="text-xs text-slate-700 font-medium mt-1 leading-relaxed">${evt.note}</p>
+              <div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-[11px] font-bold">Dimensión: ${evt.dimensions}</span>
+                <span class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-extrabold border border-indigo-200/60">Severidad: ${evt.severity}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 }
 
@@ -973,20 +1014,20 @@ function initUserManagement() {
 
   if (tabListBtn && tabNewBtn) {
     tabListBtn.addEventListener('click', () => {
-      tabListBtn.classList.add('bg-primary', 'text-on-primary');
-      tabListBtn.classList.remove('bg-surface-container-low', 'text-on-surface-variant');
-      tabNewBtn.classList.remove('bg-primary', 'text-on-primary');
-      tabNewBtn.classList.add('bg-surface-container-low', 'text-on-surface-variant');
+      tabListBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
+      tabListBtn.classList.remove('bg-transparent', 'text-slate-600');
+      tabNewBtn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
+      tabNewBtn.classList.add('bg-transparent', 'text-slate-600');
       panelList.classList.remove('hidden');
       panelNew.classList.add('hidden');
       renderUserProfilesList();
     });
 
     tabNewBtn.addEventListener('click', () => {
-      tabNewBtn.classList.add('bg-primary', 'text-on-primary');
-      tabNewBtn.classList.remove('bg-surface-container-low', 'text-on-surface-variant');
-      tabListBtn.classList.remove('bg-primary', 'text-on-primary');
-      tabListBtn.classList.add('bg-surface-container-low', 'text-on-surface-variant');
+      tabNewBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
+      tabNewBtn.classList.remove('bg-transparent', 'text-slate-600');
+      tabListBtn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
+      tabListBtn.classList.add('bg-transparent', 'text-slate-600');
       panelNew.classList.remove('hidden');
       panelList.classList.add('hidden');
     });
@@ -1056,29 +1097,29 @@ function renderUserProfilesList() {
   container.innerHTML = users.map(u => {
     const isActive = u.id === activeUser.id;
     return `
-      <div class="p-3.5 rounded-2xl border ${isActive ? 'border-primary bg-primary-fixed/20' : 'border-outline-variant/40 bg-surface-container-low hover:bg-surface-container'} flex items-center justify-between gap-3 transition-colors">
+      <div class="p-4 rounded-2xl border ${isActive ? 'border-indigo-600 bg-indigo-50/60 shadow-sm' : 'border-slate-200 bg-slate-50 hover:bg-white'} flex items-center justify-between gap-3 transition-all">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl ${isActive ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-primary'} flex items-center justify-center font-bold text-sm">
+          <div class="w-10 h-10 rounded-xl ${isActive ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-200 text-slate-700'} flex items-center justify-center font-bold text-sm">
             ${u.initials}
           </div>
           <div class="flex flex-col">
             <div class="flex items-center gap-1.5">
-              <span class="font-bold text-xs text-on-surface">${u.name}</span>
-              ${isActive ? '<span class="text-[9px] bg-primary text-on-primary font-bold px-1.5 py-0.2 rounded-full">Activo</span>' : ''}
+              <span class="font-extrabold text-xs text-slate-900">${u.name}</span>
+              ${isActive ? '<span class="text-[9px] bg-indigo-600 text-white font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">Activo</span>' : ''}
             </div>
-            <span class="text-[11px] text-on-surface-variant font-medium">${u.apartment}</span>
-            <span class="text-[10px] text-outline">${u.university} • ${u.damages?.length || 0} daños registrados</span>
+            <span class="text-[11px] text-slate-700 font-semibold">${u.apartment}</span>
+            <span class="text-[10px] text-slate-500">${u.university} • ${u.damages?.length || 0} incidencias</span>
           </div>
         </div>
 
         <div>
           ${isActive ? `
-            <button disabled class="px-3 py-1.5 rounded-xl text-xs font-bold bg-primary/20 text-primary cursor-default">
-              Seleccionado
-            </button>
+            <span class="px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-indigo-100 text-indigo-700 inline-block">
+              Activo
+            </span>
           ` : `
-            <button onclick="selectUserProfile('${u.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-primary hover:bg-primary-container text-on-primary transition-colors shadow-sm">
-              Activar Perfil
+            <button onclick="selectUserProfile('${u.id}')" class="px-4 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white transition-all shadow-sm active:scale-95">
+              Activar
             </button>
           `}
         </div>
@@ -1168,22 +1209,32 @@ function renderPdfReport() {
         </tr>
       `;
     } else {
-      tbody.innerHTML = damages.map(d => `
-        <tr class="bg-surface-container-lowest border-b border-surface-container">
-          <td class="p-2 font-mono font-bold text-primary">${d.id}</td>
-          <td class="p-2 font-semibold text-on-surface">${d.title}</td>
-          <td class="p-2 text-on-surface-variant">${d.room}</td>
-          <td class="p-2 text-on-surface-variant">${d.initialDateFormatted}</td>
-          <td class="p-2">
-            <span class="px-2 py-0.5 rounded text-xs font-bold ${d.severity === 'Alta' ? 'bg-error-container text-error' : 'bg-secondary-fixed text-secondary'}">
-              ${d.severity}
-            </span>
-          </td>
-          <td class="p-2">
-            <span class="px-2 py-0.5 rounded bg-surface-container text-primary text-xs font-medium">${d.imputabilidad}</span>
-          </td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = damages.map(d => {
+        const sevColors = {
+          'Alta': 'bg-orange-100 text-orange-800 border border-orange-200',
+          'Crítica': 'bg-rose-100 text-rose-800 border border-rose-200',
+          'Media': 'bg-amber-100 text-amber-800 border border-amber-200',
+          'Baja': 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+        };
+        const sClass = sevColors[d.severity] || 'bg-slate-100 text-slate-800';
+
+        return `
+          <tr class="bg-white border-b border-slate-200">
+            <td class="p-2.5 font-mono font-bold text-indigo-700">${d.id}</td>
+            <td class="p-2.5 font-bold text-slate-900">${d.title}</td>
+            <td class="p-2.5 text-slate-600">${d.room}</td>
+            <td class="p-2.5 text-slate-600">${d.initialDateFormatted}</td>
+            <td class="p-2.5">
+              <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${sClass}">
+                ${d.severity}
+              </span>
+            </td>
+            <td class="p-2.5">
+              <span class="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-200/60">${d.imputabilidad}</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
   }
 
@@ -1197,32 +1248,32 @@ function renderPdfReport() {
         const latest = hasFollowUp ? d.updates[d.updates.length - 1] : null;
 
         return `
-          <div class="border border-outline-variant/50 rounded-xl p-4 bg-surface-container-lowest flex flex-col gap-2 mb-4 break-inside-avoid">
-            <div class="flex items-center justify-between border-b border-outline-variant/30 pb-2">
+          <div class="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm flex flex-col gap-3 mb-4 break-inside-avoid">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
               <div class="flex items-center gap-2">
-                <span class="font-bold text-primary font-mono text-xs">[ANEXO FOTOGRÁFICO #${index + 1}]</span>
-                <span class="font-bold text-on-surface">${d.id}: ${d.title}</span>
+                <span class="font-extrabold text-indigo-700 font-mono text-xs">[ANEXO FOTOGRÁFICO #${index + 1}]</span>
+                <span class="font-extrabold text-slate-900">${d.id}: ${d.title}</span>
               </div>
-              <span class="text-[10px] bg-surface-container px-2 py-0.5 rounded text-primary font-medium">Ubicación: ${d.room}</span>
+              <span class="text-[10px] bg-indigo-50 border border-indigo-200/60 px-2.5 py-1 rounded-lg text-indigo-700 font-bold">Ubicación: ${d.room}</span>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div class="flex flex-col gap-1">
-                <span class="text-[10px] font-semibold text-secondary uppercase">Registro Inicial — ${d.initialDateFormatted}</span>
-                <img src="${d.initialImage}" alt="Registro inicial ${d.id}" class="w-full h-40 object-cover rounded border border-outline-variant/30" />
-                <p class="text-[10px] text-on-surface-variant italic mt-0.5">"${d.initialNote}"</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="flex flex-col gap-1.5">
+                <span class="text-[10px] font-extrabold text-indigo-700 uppercase tracking-wider">Foto Inicial — ${d.initialDateFormatted}</span>
+                <img src="${d.initialImage}" alt="Registro inicial ${d.id}" class="w-full h-44 object-cover rounded-xl border border-slate-200 shadow-sm" />
+                <p class="text-[11px] text-slate-600 italic mt-0.5">"${d.initialNote}"</p>
               </div>
 
               ${hasFollowUp ? `
-                <div class="flex flex-col gap-1">
-                  <span class="text-[10px] font-semibold text-error uppercase">Evolución Posterior — ${latest.dateFormatted}</span>
-                  <img src="${latest.image}" alt="Evolución posterior ${d.id}" class="w-full h-40 object-cover rounded border border-outline-variant/30" />
-                  <p class="text-[10px] text-on-surface-variant italic mt-0.5">"${latest.note}"</p>
+                <div class="flex flex-col gap-1.5">
+                  <span class="text-[10px] font-extrabold text-rose-700 uppercase tracking-wider">Evolución Posterior — ${latest.dateFormatted}</span>
+                  <img src="${latest.image}" alt="Evolución posterior ${d.id}" class="w-full h-44 object-cover rounded-xl border border-slate-200 shadow-sm" />
+                  <p class="text-[11px] text-slate-600 italic mt-0.5">"${latest.note}"</p>
                 </div>
               ` : `
-                <div class="flex flex-col items-center justify-center bg-surface-container-low rounded border border-dashed border-outline-variant p-3 text-center">
-                  <span class="material-symbols-outlined text-outline text-2xl">photo_library</span>
-                  <span class="text-[10px] text-on-surface-variant mt-1">Sin evoluciones críticas registradas a la fecha.</span>
+                <div class="flex flex-col items-center justify-center bg-slate-50 rounded-xl border border-dashed border-slate-200 p-4 text-center">
+                  <span class="material-symbols-outlined text-slate-400 text-3xl">photo_library</span>
+                  <span class="text-xs text-slate-500 mt-1 font-medium">Sin fotos de seguimiento posteriores a la fecha.</span>
                 </div>
               `}
             </div>

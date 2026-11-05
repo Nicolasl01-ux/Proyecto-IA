@@ -274,6 +274,60 @@ class CasaAlertaStore {
     return followUp;
   }
 
+  deleteDamage(damageId, reason = 'Solucionado') {
+    const user = this.getActiveUser();
+    if (!user) return null;
+
+    const damageIndex = user.damages.findIndex(d => d.id === damageId);
+    if (damageIndex === -1) return null;
+
+    const [removed] = user.damages.splice(damageIndex, 1);
+    
+    if (!user.archivedDamages) user.archivedDamages = [];
+    user.archivedDamages.unshift({
+      ...removed,
+      deletedAt: new Date().toISOString(),
+      deletedAtFormatted: new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }),
+      formattedDeletedAt: new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }),
+      deleteReason: reason,
+      deletionReason: reason,
+      status: reason
+    });
+
+    if (this.activeDamageId === damageId) {
+      this.activeDamageId = user.damages[0]?.id || null;
+    }
+
+    this.saveData();
+    return removed;
+  }
+
+  restoreDamage(damageId) {
+    const user = this.getActiveUser();
+    if (!user || !user.archivedDamages) return null;
+
+    const index = user.archivedDamages.findIndex(d => d.id === damageId);
+    if (index === -1) return null;
+
+    const [restored] = user.archivedDamages.splice(index, 1);
+    delete restored.deletedAt;
+    delete restored.deletedAtFormatted;
+    delete restored.formattedDeletedAt;
+    delete restored.deleteReason;
+    delete restored.deletionReason;
+    restored.status = 'Activo';
+
+    user.damages.unshift(restored);
+    this.activeDamageId = restored.id;
+    this.saveData();
+    return restored;
+  }
+
+  getArchivedDamages() {
+    const user = this.getActiveUser();
+    return user?.archivedDamages || [];
+  }
+
   getStats() {
     const damages = this.getDamages();
     const totalDamages = damages.length;
@@ -415,6 +469,102 @@ function initRouter() {
   navigateTo(initialPath);
 }
 
+let currentDashboardTab = 'active';
+let reportIdToDelete = null;
+
+function switchDashboardTab(tab) {
+  currentDashboardTab = tab;
+  const activeBtn = document.getElementById('tab-dash-active');
+  const archivedBtn = document.getElementById('tab-dash-archived');
+
+  if (tab === 'active') {
+    if (activeBtn) {
+      activeBtn.className = 'px-4 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 text-white shadow-sm flex items-center gap-2 transition-all';
+    }
+    if (archivedBtn) {
+      archivedBtn.className = 'px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 flex items-center gap-2 transition-all';
+    }
+  } else {
+    if (activeBtn) {
+      activeBtn.className = 'px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 flex items-center gap-2 transition-all';
+    }
+    if (archivedBtn) {
+      archivedBtn.className = 'px-4 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 text-white shadow-sm flex items-center gap-2 transition-all';
+    }
+  }
+
+  renderDashboardCards();
+}
+
+function openDeleteModal(damageId) {
+  reportIdToDelete = damageId;
+  const damage = window.appStore.getDamage(damageId);
+  const modal = document.getElementById('modal-delete-report');
+  const infoElem = document.getElementById('delete-modal-damage-info');
+
+  if (infoElem && damage) {
+    infoElem.textContent = `${damage.id}: ${damage.title} (${damage.room})`;
+  }
+
+  const radios = document.querySelectorAll('input[name="delete-reason"]');
+  radios.forEach((r, idx) => {
+    r.checked = idx === 0;
+  });
+  updateDeleteReasonStyles();
+
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+}
+
+function closeDeleteModal() {
+  const modal = document.getElementById('modal-delete-report');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+  reportIdToDelete = null;
+}
+
+function updateDeleteReasonStyles() {
+  const labels = document.querySelectorAll('.delete-reason-label');
+  labels.forEach(lbl => {
+    const radio = lbl.querySelector('input[type="radio"]');
+    if (radio && radio.checked) {
+      lbl.classList.remove('border-slate-200');
+      lbl.classList.add('border-indigo-600', 'bg-indigo-50/40', 'shadow-sm');
+    } else {
+      lbl.classList.remove('border-indigo-600', 'bg-indigo-50/40', 'shadow-sm');
+      lbl.classList.add('border-slate-200');
+    }
+  });
+}
+
+function confirmDeleteReport() {
+  if (!reportIdToDelete) return;
+  const selectedRadio = document.querySelector('input[name="delete-reason"]:checked');
+  const reason = selectedRadio ? selectedRadio.value : 'Solucionado';
+
+  const damage = window.appStore.getDamage(reportIdToDelete);
+  const result = window.appStore.deleteDamage(reportIdToDelete, reason);
+  if (result) {
+    showToast(`Reporte eliminado: Motivo "${reason}"`);
+    closeDeleteModal();
+    renderDashboardCards();
+    updateUserInterface();
+  }
+}
+
+function restoreDamageReport(damageId) {
+  const result = window.appStore.restoreDamage(damageId);
+  if (result) {
+    showToast(`Reporte ${damageId} reactivado en tu panel`);
+    renderDashboardCards();
+    updateUserInterface();
+  }
+}
+
 function initDashboardView() {
   const filterButtons = document.querySelectorAll('.filter-type-btn');
   const zoneSelect = document.getElementById('zone-filter-select');
@@ -441,6 +591,10 @@ function initDashboardView() {
     });
   }
 
+  document.querySelectorAll('input[name="delete-reason"]').forEach(radio => {
+    radio.addEventListener('change', updateDeleteReasonStyles);
+  });
+
   renderDashboardCards();
 }
 
@@ -448,7 +602,8 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
   const container = document.getElementById('dashboard-cards-container');
   if (!container) return;
 
-  const damages = window.appStore.getDamages();
+  const activeDamages = window.appStore.getDamages();
+  const archivedDamages = window.appStore.getArchivedDamages();
   const stats = window.appStore.getStats();
 
   const statActivos = document.getElementById('stat-active-damages');
@@ -456,26 +611,45 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
   if (statActivos) statActivos.textContent = stats.activeDamages;
   if (statEvidencias) statEvidencias.textContent = stats.totalEvidences;
 
-  const filtered = damages.filter(d => {
+  const activeCountElem = document.getElementById('dash-active-count');
+  const archivedCountElem = document.getElementById('dash-archived-count');
+  if (activeCountElem) activeCountElem.textContent = activeDamages.length;
+  if (archivedCountElem) archivedCountElem.textContent = archivedDamages.length;
+
+  const listToRender = currentDashboardTab === 'active' ? activeDamages : archivedDamages;
+
+  const filtered = listToRender.filter(d => {
     const matchesType = filterType === 'all' || d.typology === filterType;
     const matchesZone = filterZone === 'all' || d.room.toLowerCase().includes(filterZone.toLowerCase());
     return matchesType && matchesZone;
   });
 
   if (filtered.length === 0) {
-    container.innerHTML = `
-      <div class="col-span-1 md:col-span-2 lg:col-span-3 text-center py-16 bg-white rounded-3xl border-2 border-dashed border-slate-200 p-8 shadow-sm">
-        <div class="w-16 h-16 rounded-3xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3 shadow-inner">
-          <span class="material-symbols-outlined text-3xl">add_photo_alternate</span>
+    if (currentDashboardTab === 'active') {
+      container.innerHTML = `
+        <div class="col-span-1 md:col-span-2 lg:col-span-3 text-center py-16 bg-white rounded-3xl border-2 border-dashed border-slate-200 p-8 shadow-sm">
+          <div class="w-16 h-16 rounded-3xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3 shadow-inner">
+            <span class="material-symbols-outlined text-3xl">add_photo_alternate</span>
+          </div>
+          <h4 class="font-extrabold text-base text-slate-900">No hay incidencias activas</h4>
+          <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto mb-5 leading-relaxed">No se encontraron problemas pendientes en esta categoría o zona. ¡Excelente estado del apartamento!</p>
+          <a href="#nuevo-registro" data-path="nuevo-registro" class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white px-5 py-3 rounded-2xl text-xs font-extrabold shadow-md shadow-indigo-500/25 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-base">add_a_photo</span>
+            <span>+ Registrar Nuevo Daño</span>
+          </a>
         </div>
-        <h4 class="font-extrabold text-base text-slate-900">No hay incidencias registradas con este filtro</h4>
-        <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto mb-5 leading-relaxed">No se encontraron problemas bajo la tipología o zona seleccionada. Puedes registrar un nuevo hallazgo con foto en cualquier momento.</p>
-        <a href="#nuevo-registro" data-path="nuevo-registro" class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white px-5 py-3 rounded-2xl text-xs font-extrabold shadow-md shadow-indigo-500/25 active:scale-95 transition-all">
-          <span class="material-symbols-outlined text-base">add_a_photo</span>
-          <span>+ Registrar Nuevo Daño</span>
-        </a>
-      </div>
-    `;
+      `;
+    } else {
+      container.innerHTML = `
+        <div class="col-span-1 md:col-span-2 lg:col-span-3 text-center py-16 bg-white rounded-3xl border-2 border-dashed border-slate-200 p-8 shadow-sm">
+          <div class="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3 shadow-inner">
+            <span class="material-symbols-outlined text-3xl">inventory_2</span>
+          </div>
+          <h4 class="font-extrabold text-base text-slate-900">No hay reportes eliminados o resueltos</h4>
+          <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">Cuando des de baja un reporte por reparación, mudanza o antigüedad, aparecerá aquí como constancia histórica.</p>
+        </div>
+      `;
+    }
     return;
   }
 
@@ -485,6 +659,12 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
     'plomeria': { label: 'Plomería', icon: 'plumbing', pill: 'bg-teal-50 text-teal-700 border-teal-200', dot: 'bg-teal-500' },
     'electrico': { label: 'Eléctrico', icon: 'electric_bolt', pill: 'bg-amber-50 text-amber-800 border-amber-200', dot: 'bg-amber-500' },
     'acabados': { label: 'Cerrajería / Acabados', icon: 'lock', pill: 'bg-purple-50 text-purple-700 border-purple-200', dot: 'bg-purple-500' }
+  };
+
+  const reasonBadges = {
+    'Solucionado': { label: 'Solucionado', icon: 'check_circle', pill: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    'Cambio de domicilio': { label: 'Cambio de domicilio', icon: 'home', pill: 'bg-blue-50 text-blue-700 border-blue-200' },
+    'Por antigüedad del reporte': { label: 'Por antigüedad', icon: 'history', pill: 'bg-amber-50 text-amber-800 border-amber-200' }
   };
 
   container.innerHTML = filtered.map(d => {
@@ -501,15 +681,17 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
 
     const severityClass = severityBadges[d.severity] || 'bg-slate-100 text-slate-800 font-bold';
     const typeInfo = typologyMeta[d.typology] || { label: d.typologyLabel || 'Incidencia', icon: 'warning', pill: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-500' };
+    const reasonInfo = reasonBadges[d.deleteReason] || { label: d.deleteReason || 'Archivado', icon: 'archive', pill: 'bg-slate-100 text-slate-700 border-slate-200' };
+    const isArchived = currentDashboardTab === 'archived';
 
     return `
       <div class="bg-white border border-slate-200/90 rounded-3xl overflow-hidden shadow-sm card-hover-effect flex flex-col justify-between group">
         <div>
           <div class="relative w-full h-52 bg-slate-100 overflow-hidden">
-            <img src="${d.initialImage}" alt="${d.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            <img src="${d.initialImage}" alt="${d.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isArchived ? 'grayscale-[35%]' : ''}" />
             
             <div class="absolute top-3 left-3 bg-slate-900/85 backdrop-blur-md text-white px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span class="w-1.5 h-1.5 rounded-full ${isArchived ? 'bg-amber-400' : 'bg-emerald-400'}"></span>
               <span>${d.id}</span>
             </div>
 
@@ -529,12 +711,19 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
           </div>
 
           <div class="p-5 flex flex-col gap-2">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between gap-1 flex-wrap">
               <span class="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-lg border ${typeInfo.pill}">
                 <span class="w-1.5 h-1.5 rounded-full ${typeInfo.dot}"></span>
                 ${typeInfo.label}
               </span>
-              <span class="text-[11px] font-medium text-slate-500">${latestDate}</span>
+              ${isArchived ? `
+                <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg border ${reasonInfo.pill}">
+                  <span class="material-symbols-outlined text-xs">${reasonInfo.icon}</span>
+                  ${reasonInfo.label}
+                </span>
+              ` : `
+                <span class="text-[11px] font-medium text-slate-500">${latestDate}</span>
+              `}
             </div>
 
             <h3 class="text-sm font-extrabold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1 mt-0.5">
@@ -547,15 +736,30 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
           </div>
         </div>
 
-        <div class="p-5 pt-0 border-t border-slate-100 mt-2 flex items-center justify-between gap-2.5">
-          <button onclick="openTimelineFor('${d.id}')" class="flex-1 inline-flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all border border-slate-200">
-            <span class="material-symbols-outlined text-sm text-indigo-600">history_edu</span>
-            <span>Ver Evolución</span>
-          </button>
-          <button onclick="openFollowUpModal('${d.id}')" class="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-500/20 active:scale-95" title="Añadir foto de seguimiento (RF-02)">
-            <span class="material-symbols-outlined text-sm">add_a_photo</span>
-            <span>+ Foto</span>
-          </button>
+        <div class="p-4 pt-0 border-t border-slate-100 mt-2 flex items-center justify-between gap-2">
+          ${isArchived ? `
+            <div class="flex items-center gap-1 text-[11px] text-slate-500 font-medium">
+              <span class="material-symbols-outlined text-xs text-slate-400">history_toggle_off</span>
+              <span>Baja: ${d.deletedAtFormatted || 'Reciente'}</span>
+            </div>
+            <button onclick="restoreDamageReport('${d.id}')" class="inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-2 px-3 rounded-xl text-xs font-bold transition-all border border-emerald-200 active:scale-95" title="Reactivar este reporte en tus incidencias activas">
+              <span class="material-symbols-outlined text-sm">restore</span>
+              <span>Restaurar</span>
+            </button>
+          ` : `
+            <button onclick="openTimelineFor('${d.id}')" class="flex-1 inline-flex items-center justify-center gap-1 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 py-2 px-2.5 rounded-xl text-xs font-bold transition-all border border-slate-200" title="Ver historial de fotos y fechas (RF-02)">
+              <span class="material-symbols-outlined text-sm text-indigo-600">history_edu</span>
+              <span>Evolución</span>
+            </button>
+            <button onclick="openFollowUpModal('${d.id}')" class="inline-flex items-center justify-center gap-1 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white py-2 px-2.5 rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-500/20 active:scale-95" title="Añadir foto de seguimiento (RF-02)">
+              <span class="material-symbols-outlined text-sm">add_a_photo</span>
+              <span>+ Foto</span>
+            </button>
+            <button onclick="openDeleteModal('${d.id}')" class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 py-2 px-2.5 rounded-xl text-xs font-bold transition-all border border-rose-200 active:scale-95" title="Eliminar o dar de baja este reporte">
+              <span class="material-symbols-outlined text-sm">delete</span>
+              <span>Eliminar</span>
+            </button>
+          `}
         </div>
       </div>
     `;
@@ -1329,3 +1533,8 @@ window.closeUserModal = closeUserModal;
 window.selectUserProfile = selectUserProfile;
 window.startLiveCamera = startLiveCamera;
 window.stopLiveCamera = stopLiveCamera;
+window.openDeleteModal = openDeleteModal;
+window.closeDeleteModal = closeDeleteModal;
+window.confirmDeleteReport = confirmDeleteReport;
+window.switchDashboardTab = switchDashboardTab;
+window.restoreDamageReport = restoreDamageReport;

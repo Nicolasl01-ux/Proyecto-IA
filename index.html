@@ -418,6 +418,23 @@
           </div>
         </div>
 
+        <!-- Barra de Pestañas de Estado (Reportes Activos vs Historial / Eliminados) -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3 pt-2">
+          <div class="flex items-center gap-2">
+            <button id="tab-dash-active" onclick="switchDashboardTab('active')" class="px-4 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 text-white shadow-sm flex items-center gap-2 transition-all">
+              <span class="material-symbols-outlined text-sm">assignment</span>
+              <span>Reportes Activos</span>
+              <span class="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-black" id="dash-active-count">0</span>
+            </button>
+            <button id="tab-dash-archived" onclick="switchDashboardTab('archived')" class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 flex items-center gap-2 transition-all">
+              <span class="material-symbols-outlined text-sm text-slate-500">inventory_2</span>
+              <span>Historial / Eliminados</span>
+              <span class="px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold" id="dash-archived-count">0</span>
+            </button>
+          </div>
+          <span class="text-[11px] text-slate-500 hidden sm:inline font-medium">Gestiona y retira daños reparados, por mudanza o vencidos</span>
+        </div>
+
         <!-- Filtros y Barra de Búsqueda Intuitiva -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
           <div class="flex flex-wrap items-center gap-2">
@@ -1162,6 +1179,85 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: ELIMINAR REPORTE (MOTIVOS)         -->
+  <!-- ========================================== -->
+  <div id="modal-delete-report" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl p-6 space-y-5">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3.5">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+            <span class="material-symbols-outlined text-xl">delete</span>
+          </div>
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">Eliminar Reporte de Daño</h2>
+            <p class="text-xs text-slate-500" id="delete-modal-damage-info">DM-01 • Baño Principal</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeDeleteModal()" class="text-slate-400 hover:text-slate-700 p-1 rounded-xl">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <label class="text-xs font-extrabold text-slate-800 block">
+          ¿Cuál es el motivo de la eliminación? (Selecciona una opción):
+        </label>
+
+        <!-- Opción 1: Solucionado -->
+        <label class="delete-reason-label flex items-start gap-3 p-3.5 rounded-2xl border-2 border-emerald-500 bg-emerald-50/30 cursor-pointer transition-all">
+          <input type="radio" name="delete-reason" value="Solucionado" checked class="mt-1 text-emerald-600 focus:ring-emerald-500" />
+          <div class="flex flex-col">
+            <span class="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+              <span>🛠️</span>
+              <span>Solucionado / Reparado</span>
+            </span>
+            <span class="text-[11px] text-slate-600 mt-0.5">El propietario o un técnico ya arregló el daño de forma satisfactoria.</span>
+          </div>
+        </label>
+
+        <!-- Opción 2: Cambio de domicilio -->
+        <label class="delete-reason-label flex items-start gap-3 p-3.5 rounded-2xl border-2 border-slate-200 hover:border-indigo-300 hover:bg-slate-50 cursor-pointer transition-all">
+          <input type="radio" name="delete-reason" value="Cambio de domicilio" class="mt-1 text-indigo-600 focus:ring-indigo-500" />
+          <div class="flex flex-col">
+            <span class="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+              <span>📦</span>
+              <span>Cambio de Domicilio</span>
+            </span>
+            <span class="text-[11px] text-slate-600 mt-0.5">Ya no vivo en este apartamento (fin de contrato o mudanza).</span>
+          </div>
+        </label>
+
+        <!-- Opción 3: Por antigüedad del reporte -->
+        <label class="delete-reason-label flex items-start gap-3 p-3.5 rounded-2xl border-2 border-slate-200 hover:border-amber-300 hover:bg-slate-50 cursor-pointer transition-all">
+          <input type="radio" name="delete-reason" value="Por antigüedad del reporte" class="mt-1 text-amber-600 focus:ring-amber-500" />
+          <div class="flex flex-col">
+            <span class="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+              <span>⏳</span>
+              <span>Por Antigüedad del Reporte</span>
+            </span>
+            <span class="text-[11px] text-slate-600 mt-0.5">El reporte es muy antiguo, ya caducó o ya no requiere seguimiento probatorio.</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-600 text-[11px] flex items-center gap-2">
+        <span class="material-symbols-outlined text-sm flex-shrink-0 text-indigo-600">info</span>
+        <span>El reporte quedará archivado con constancia del motivo seleccionado.</span>
+      </div>
+
+      <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+        <button type="button" onclick="closeDeleteModal()" class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all">
+          Cancelar
+        </button>
+        <button type="button" id="confirm-delete-btn" onclick="confirmDeleteReport()" class="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white shadow-md shadow-rose-500/25 active:scale-95 transition-all flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-base">delete</span>
+          <span>Confirmar Eliminación</span>
+        </button>
+      </div>
     </div>
   </div>
 

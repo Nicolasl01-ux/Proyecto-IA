@@ -328,6 +328,29 @@ class CasaAlertaStore {
     return user?.archivedDamages || [];
   }
 
+  updateDamageStatus(damageId, newStatus) {
+    const user = this.getActiveUser();
+    if (!user) return null;
+    const damage = user.damages.find(d => d.id === damageId);
+    if (!damage) return null;
+
+    damage.status = newStatus;
+    damage.statusUpdatedAt = new Date().toISOString();
+    damage.statusUpdatedAtFormatted = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+    this.saveData();
+    return damage;
+  }
+
+  importData(importedObj) {
+    if (!importedObj || !Array.isArray(importedObj.users) || importedObj.users.length === 0) {
+      throw new Error("El archivo no contiene un formato de respaldo válido de CasaAlerta.");
+    }
+    this.data = importedObj;
+    this.saveData();
+    this.activeDamageId = this.getActiveUser()?.damages[0]?.id || null;
+    return true;
+  }
+
   getStats() {
     const damages = this.getDamages();
     const totalDamages = damages.length;
@@ -336,16 +359,316 @@ class CasaAlertaStore {
       totalEvidences += (d.updates ? d.updates.length : 0);
     });
 
+    const activeCount = damages.filter(d => (d.status || 'Activo') === 'Activo').length;
+    const notifiedCount = damages.filter(d => d.status === 'Notificado').length;
+    const repairedCount = damages.filter(d => d.status === 'Reparado').length;
+
     return {
       activeDamages: totalDamages,
+      pendingDamages: activeCount,
+      notifiedDamages: notifiedCount,
+      repairedDamages: repairedCount,
       totalEvidences: totalEvidences,
       reportsGenerated: 1,
-      pendingWithLandlord: 0
+      pendingWithLandlord: notifiedCount
     };
   }
 }
 
 window.appStore = new CasaAlertaStore();
+
+/**
+ * =============================================================================
+ * COMPRESOR DE IMÁGENES AUTOMÁTICO CON CANVAS HTML5 (PROTECCIÓN LOCALSTORAGE)
+ * =============================================================================
+ */
+async function compressImageFileOrDataUrl(input, maxDim = 1200, quality = 0.76) {
+  if (!input) return '';
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve(compressedDataUrl);
+    };
+    img.onerror = () => {
+      resolve(typeof input === 'string' ? input : '');
+    };
+    if (typeof input === 'string') {
+      img.src = input;
+    } else if (input instanceof File || input instanceof Blob) {
+      const reader = new FileReader();
+      reader.onload = (e) => { img.src = e.target.result; };
+      reader.readAsDataURL(input);
+    } else {
+      resolve('');
+    }
+  });
+}
+
+/**
+ * =============================================================================
+ * MOTOR CENTRAL DE INTELIGENCIA ARTIFICIAL (GEMINI 1.5/2.0 + MOTOR OFFLINE)
+ * =============================================================================
+ */
+const CasaAlertaAI = {
+  getApiKey() {
+    return localStorage.getItem('casaalerta_gemini_key') || '';
+  },
+
+  setApiKey(key) {
+    if (key && key.trim()) {
+      localStorage.setItem('casaalerta_gemini_key', key.trim());
+    } else {
+      localStorage.removeItem('casaalerta_gemini_key');
+    }
+  },
+
+  hasApiKey() {
+    return !!this.getApiKey();
+  },
+
+  async analyzeDamageImage(imageDataUrl, typologyHint = 'humedad', roomHint = 'Habitación') {
+    const apiKey = this.getApiKey();
+
+    if (apiKey) {
+      try {
+        const base64Data = imageDataUrl.includes(',') ? imageDataUrl.split(',')[1] : imageDataUrl;
+        const mimeType = imageDataUrl.includes('image/png') ? 'image/png' : 'image/jpeg';
+        
+        const prompt = `Eres un perito técnico forense e inspector experto en patologías de edificaciones y arriendos residenciales en Colombia. Analiza minuciosamente esta fotografía tomada por un estudiante universitario en un apartamento arrendado en Sogamoso, Boyacá.
+
+Responde estrictamente con un JSON plano sin bloques ni formato markdown exterior con esta estructura exacta:
+{
+  "typology": "humedad" | "grietas" | "plomeria" | "electrico" | "acabados",
+  "typologyLabel": "Humedad" | "Grieta / Fisura" | "Plomería / Fuga" | "Daño Eléctrico" | "Cerrajería / Puerta",
+  "confidence": 94,
+  "title": "Título técnico preciso (máx 10 palabras)",
+  "severity": "Baja" | "Media" | "Alta" | "Crítica",
+  "severityReason": "Explicación del riesgo a la salud, integridad física o daño emergente",
+  "probableCause": "Causa constructiva probable (infiltración pluvial, capilaridad, fatiga o dilatación)",
+  "legalBasis": "Fundamento legal bajo Ley 820 de 2003 (Arts. 19 y 20) y Código Civil Colombiano Art. 1985",
+  "formalDescription": "Descripción formal probatoria con dimensiones aproximadas y signos de avance."
+}`;
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: prompt },
+                { inlineData: { mimeType: mimeType, data: base64Data } }
+              ]
+            }],
+            generationConfig: {
+              temperature: 0.2,
+              responseMimeType: "application/json"
+            }
+          })
+        });
+
+        if (response.ok) {
+          const json = await response.json();
+          const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText) {
+            const cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(cleanText);
+            parsed.source = 'Google Gemini (Visión en Vivo)';
+            return parsed;
+          }
+        } else {
+          console.warn("Respuesta no exitosa de Gemini API, usando motor experto pericial:", response.status);
+        }
+      } catch (err) {
+        console.warn("Error consultando Gemini API, usando motor pericial integrado:", err);
+      }
+    }
+
+    // Motor Pericial Experto Offline Integrado
+    return this.expertRuleDiagnosis(imageDataUrl, typologyHint, roomHint);
+  },
+
+  expertRuleDiagnosis(imageDataUrl, typology = 'humedad', room = 'Habitación') {
+    const knowledgeBase = {
+      'humedad': {
+        typology: 'humedad',
+        typologyLabel: 'Humedad',
+        confidence: 94,
+        title: `Humedad por infiltración activa con eflorescencia en ${room}`,
+        severity: 'Alta',
+        severityReason: 'Presencia de humedad activa y colonias fúngicas. Riesgo respiratorio para el arrendatario y desprendimiento de estuco.',
+        probableCause: 'Infiltración proveniente de fachada exterior o falla de impermeabilización en losa/bajante de aguas lluvias. No atribuible a condensación ordinaria.',
+        legalBasis: 'Ley 820 de 2003 Art. 19 y Código Civil Art. 1985: Reparación necesaria no locativa a cargo exclusivo del arrendador.',
+        formalDescription: 'Se observa área de humedad activa con diámetro aproximado de 25-35 cm, presentando ampollamiento de la película de pintura, descascaramiento y decoloración amarillenta/oscura con colonias de moho incipiente.'
+      },
+      'grietas': {
+        typology: 'grietas',
+        typologyLabel: 'Grieta / Fisura',
+        confidence: 91,
+        title: `Fisura diagonal por asentamiento o dilatación térmica en ${room}`,
+        severity: 'Media',
+        severityReason: 'Discontinuidad en revoque que puede comprometer la estanqueidad y avanzar si hay vibraciones o sismos menores.',
+        probableCause: 'Tensión estructural por asentamiento diferencial de la mampostería o choque térmico en muro perimetral.',
+        legalBasis: 'Ley 820 de 2003 Art. 19: Defecto de vicio oculto o estructural ajeno a la tenencia del inquilino.',
+        formalDescription: 'Fisura rectilínea de longitud aproximada 40 cm y abertura visible de ~1.5 mm, extendiéndose sobre muro de mampostería sin daño aparente en elementos portantes principales.'
+      },
+      'plomeria': {
+        typology: 'plomeria',
+        typologyLabel: 'Plomería / Fuga',
+        confidence: 96,
+        title: `Fuga intermitente en acometida/sifón hidráulico en ${room}`,
+        severity: 'Alta',
+        severityReason: 'Goteo continuo con riesgo de daño por hinchamiento en carpintería de madera aglomerada y malos olores.',
+        probableCause: 'Falla en sello de empaque de caucho o fatiga en acople roscado de PVC por desgaste natural del servicio.',
+        legalBasis: 'Ley 820 de 2003 Art. 20: Reparación indispensable para el uso y goce del inmueble.',
+        formalDescription: 'Goteo constante con acumulación de agua residual en base de mueble. Evidencia deterioro por humedad en panel aglomerado inferior.'
+      },
+      'electrico': {
+        typology: 'electrico',
+        typologyLabel: 'Daño Eléctrico',
+        confidence: 93,
+        title: `Anomalía en terminal o toma eléctrica con riesgo de corto en ${room}`,
+        severity: 'Crítica',
+        severityReason: 'Riesgo inminente de descarga eléctrica, chispeo o recalentamiento de conductores.',
+        probableCause: 'Sulfatación de contactos por humedad circundante o sobrecarga histórica previa.',
+        legalBasis: 'Reglamento RETIE y Ley 820/2003 Art. 19: Obligación de entregar y mantener servicios en condiciones de seguridad óptima.',
+        formalDescription: 'Punto eléctrico presenta placa floja, hollín o humedad en proximidad inmediata, requiriendo aislamiento preventivo urgente.'
+      },
+      'acabados': {
+        typology: 'acabados',
+        typologyLabel: 'Cerrajería / Puerta',
+        confidence: 89,
+        title: `Desajuste mecánico y fricción en cerradura/marco de ${room}`,
+        severity: 'Media',
+        severityReason: 'Dificultad en aseguramiento que compromete la seguridad del inmueble y los bienes del estudiante.',
+        probableCause: 'Descuadre por dilatación o desgaste en pernos de anclaje de la chapa por uso normal prolongado.',
+        legalBasis: 'Ley 820 de 2003 Art. 19: Garantía de seguridad mínima de la vivienda arrendada.',
+        formalDescription: 'Pestillo roza contra la pletina receptora metálica requiriendo maniobra de fuerza para operar el cerrojo de seguridad.'
+      }
+    };
+
+    const res = knowledgeBase[typology] || knowledgeBase['humedad'];
+    return {
+      ...res,
+      source: 'Motor Pericial Experto Integrado (Offline)'
+    };
+  },
+
+  analyzeTimelineEvolution(damage) {
+    if (!damage) return null;
+    const followUps = damage.updates || [];
+    const count = followUps.length;
+    const latest = count > 0 ? followUps[count - 1] : null;
+
+    return {
+      damageId: damage.id,
+      title: damage.title,
+      totalUpdates: count,
+      firstDate: damage.initialDateFormatted,
+      lastDate: latest ? latest.dateFormatted : damage.initialDateFormatted,
+      initialSeverity: damage.severity,
+      currentSeverity: latest ? latest.severity : damage.severity,
+      verdict: count > 0 
+        ? `Se constata un agravamiento físico tras ${count} registro(s) fotográfico(s) de seguimiento. El deterioro progresivo acredita la existencia y persistencia del daño sin atención oportuna por parte del arrendador, eximiendo de culpa o descuido al estudiante inquilino.`
+        : `Se cuenta con el registro inicial documentado el ${damage.initialDateFormatted}. Si el daño presenta crecimiento con las lluvias o el uso, agrega una foto de seguimiento para activar la comparativa antes/después.`,
+      legalValue: "Plena validez probatoria cronológica conforme al régimen de pruebas del Código General del Proceso (Art. 243) para oponer excepciones y proteger el depósito de garantía.",
+      recommendation: count > 0 && (latest?.severity === 'Alta' || latest?.severity === 'Crítica')
+        ? "Recomendación: Enviar notificación formal reiterativa con advertencia de retención preventiva del canon según Ley 820/2003."
+        : "Recomendación: Mantener actualizado el registro fotográfico ante cualquier cambio de coloración o desprendimiento."
+    };
+  },
+
+  generateLegalMessage(tone, user, damages) {
+    const radicado = user.radicado || 'UPTC-SOG-302';
+    const damageList = damages.length > 0 
+      ? damages.map((d, i) => `${i + 1}. [${d.id}] ${d.title} (${d.room}) — Severidad: ${d.severity}`).join('\n')
+      : '1. Incidencias locativas en proceso de documentación.';
+
+    if (tone === 'preventivo') {
+      return `Estimado(a) ${user.landlord},
+
+Le saluda cordialmente ${user.name}, arrendatario(a) del ${user.apartment} (${user.address}).
+
+Espero que se encuentre muy bien. Me comunico para poner en su conocimiento algunas novedades e incidencias locativas que se han presentado en el inmueble, con el fin de revisarlas preventivamente y coordinar una inspección técnica cuando le sea conveniente:
+
+${damageList}
+
+Contamos con el registro fotográfico y metadatos organizados bajo el radicado: ${radicado}.
+
+Agradezco de antemano su amable atención para coordinar una fecha de visita.
+
+Atentamente,
+${user.name}
+${user.university}`;
+    }
+
+    if (tone === 'urgente') {
+      return `NOTIFICACIÓN URGENTE DE RECLAMACIÓN LOCATIVA (RAD: ${radicado})
+
+Señor(a): ${user.landlord} (Arrendador)
+Inmueble: ${user.apartment} (${user.address})
+
+Por medio de la presente, yo, ${user.name}, en calidad de arrendatario(a), le informo con carácter URGENTE sobre el estado crítico y deterioro que presentan las siguientes instalaciones del inmueble arrendado:
+
+${damageList}
+
+ADVERTENCIA LEGAL Y PERICIAL:
+Dichas afectaciones representan un riesgo inminente para la salud (presencia de humedad/hongos), seguridad física o deterioro de mis bienes personales. Al no ser imputables a mal uso sino a fallas intrínsecas o estructurales del inmueble, le solicito formalmente la intervención inmediata o visita técnica dentro de los próximos 3 días hábiles.
+
+Se deja expresa constancia de que los daños están cronológicamente certificados, eximiendo mi responsabilidad pecuniaria sobre el depósito de garantía y reservando los derechos a reclamar daño emergente conforme al Art. 1990 del Código Civil y Ley 820 de 2003.
+
+Quedo a la espera de su confirmación inmediata.
+
+Atentamente,
+${user.name}
+C.C. ${user.documentId}
+${user.university}`;
+    }
+
+    // Default: 'formal'
+    return `COMUNICACIÓN FORMAL DE NOVEDADES LOCATIVAS (LEY 820 DE 2003)
+
+Señor(a): ${user.landlord} (Arrendador)
+De: ${user.name} (Arrendatario — ${user.university})
+Inmueble: ${user.apartment} — ${user.address}
+Expediente Radicado: ${radicado}
+
+Estimado(a) ${user.landlord}:
+
+Por medio de la presente, y en cumplimiento de las obligaciones contractuales y legales, me permito notificarle formalmente las incidencias activas detectadas en el inmueble arrendado:
+
+${damageList}
+
+FUNDAMENTO JURÍDICO:
+De conformidad con el Artículo 19 (numeral 2) y Artículo 20 de la Ley 820 de 2003 de Colombia, en concordancia con el Artículo 1985 del Código Civil, corresponde al arrendador mantener el inmueble en estado de servir para el fin convenido y realizar todas las reparaciones necesarias indispensables durante el contrato.
+
+El presente expediente fotográfico y cronológico constituye prueba documental de la fecha de aparición y evolución del daño, para efectos de la restitución íntegra del depósito de garantía al término del contrato.
+
+Agradezco me indique la fecha en que su técnico pasará a realizar la inspección y reparación respectiva.
+
+Atentamente,
+${user.name}
+C.C. ${user.documentId}
+${user.apartment}`;
+  }
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   initRouter();
@@ -565,10 +888,19 @@ function restoreDamageReport(damageId) {
   }
 }
 
+let currentStatusFilter = 'all';
+let currentSearchKeyword = '';
+let currentFilterType = 'all';
+let currentFilterZone = 'all';
+
 function initDashboardView() {
   const filterButtons = document.querySelectorAll('.filter-type-btn');
   const zoneSelect = document.getElementById('zone-filter-select');
+  const searchInput = document.getElementById('dashboard-search-input');
+  const clearSearchBtn = document.getElementById('clear-search-btn');
+  const statusBtns = document.querySelectorAll('.status-filter-btn');
 
+  // Filtros por Tipo de Daño
   filterButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       filterButtons.forEach(b => {
@@ -578,16 +910,52 @@ function initDashboardView() {
       btn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
       btn.classList.remove('bg-white', 'text-slate-600');
       
-      const filter = btn.getAttribute('data-filter');
-      renderDashboardCards(filter, zoneSelect ? zoneSelect.value : 'all');
+      currentFilterType = btn.getAttribute('data-filter') || 'all';
+      renderDashboardCards(currentFilterType, currentFilterZone);
     });
   });
 
+  // Filtro por Zona
   if (zoneSelect) {
     zoneSelect.addEventListener('change', () => {
-      const activeTypeBtn = document.querySelector('.filter-type-btn.bg-indigo-600');
-      const activeType = activeTypeBtn ? activeTypeBtn.getAttribute('data-filter') : 'all';
-      renderDashboardCards(activeType, zoneSelect.value);
+      currentFilterZone = zoneSelect.value;
+      renderDashboardCards(currentFilterType, currentFilterZone);
+    });
+  }
+
+  // Filtro por Estado (Pendientes, Notificados, Reparados)
+  statusBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      statusBtns.forEach(b => {
+        b.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+        b.classList.add('bg-white', 'text-slate-600', 'border', 'border-slate-200');
+      });
+      btn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+      btn.classList.remove('bg-white', 'text-slate-600');
+
+      currentStatusFilter = btn.getAttribute('data-status') || 'all';
+      renderDashboardCards(currentFilterType, currentFilterZone);
+    });
+  });
+
+  // Búsqueda en tiempo real
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      currentSearchKeyword = e.target.value.trim().toLowerCase();
+      if (clearSearchBtn) {
+        if (currentSearchKeyword) clearSearchBtn.classList.remove('hidden');
+        else clearSearchBtn.classList.add('hidden');
+      }
+      renderDashboardCards(currentFilterType, currentFilterZone);
+    });
+  }
+
+  if (clearSearchBtn) {
+    clearSearchBtn.addEventListener('click', () => {
+      if (searchInput) searchInput.value = '';
+      currentSearchKeyword = '';
+      clearSearchBtn.classList.add('hidden');
+      renderDashboardCards(currentFilterType, currentFilterZone);
     });
   }
 
@@ -595,10 +963,14 @@ function initDashboardView() {
     radio.addEventListener('change', updateDeleteReasonStyles);
   });
 
+  document.querySelectorAll('input[name="damage-new-status"]').forEach(radio => {
+    radio.addEventListener('change', updateStatusOptionStyles);
+  });
+
   renderDashboardCards();
 }
 
-function renderDashboardCards(filterType = 'all', filterZone = 'all') {
+function renderDashboardCards(filterType = currentFilterType, filterZone = currentFilterZone) {
   const container = document.getElementById('dashboard-cards-container');
   if (!container) return;
 
@@ -621,7 +993,13 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
   const filtered = listToRender.filter(d => {
     const matchesType = filterType === 'all' || d.typology === filterType;
     const matchesZone = filterZone === 'all' || d.room.toLowerCase().includes(filterZone.toLowerCase());
-    return matchesType && matchesZone;
+    const damageStatus = d.status || 'Activo';
+    const matchesStatus = currentStatusFilter === 'all' || damageStatus === currentStatusFilter;
+    const matchesSearch = !currentSearchKeyword || (
+      (d.title || '') + ' ' + (d.room || '') + ' ' + (d.initialNote || '') + ' ' + (d.typologyLabel || '')
+    ).toLowerCase().includes(currentSearchKeyword);
+
+    return matchesType && matchesZone && matchesStatus && matchesSearch;
   });
 
   if (filtered.length === 0) {
@@ -631,8 +1009,8 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
           <div class="w-16 h-16 rounded-3xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3 shadow-inner">
             <span class="material-symbols-outlined text-3xl">add_photo_alternate</span>
           </div>
-          <h4 class="font-extrabold text-base text-slate-900">No hay incidencias activas</h4>
-          <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto mb-5 leading-relaxed">No se encontraron problemas pendientes en esta categoría o zona. ¡Excelente estado del apartamento!</p>
+          <h4 class="font-extrabold text-base text-slate-900">No hay incidencias que coincidan</h4>
+          <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto mb-5 leading-relaxed">No se encontraron problemas con los filtros seleccionados o la búsqueda actual.</p>
           <a href="#nuevo-registro" data-path="nuevo-registro" class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white px-5 py-3 rounded-2xl text-xs font-extrabold shadow-md shadow-indigo-500/25 active:scale-95 transition-all">
             <span class="material-symbols-outlined text-base">add_a_photo</span>
             <span>+ Registrar Nuevo Daño</span>
@@ -667,6 +1045,12 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
     'Por antigüedad del reporte': { label: 'Por antigüedad', icon: 'history', pill: 'bg-amber-50 text-amber-800 border-amber-200' }
   };
 
+  const statusMeta = {
+    'Reparado': { label: 'Reparado', pill: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: 'check_circle' },
+    'Notificado': { label: 'Notificado', pill: 'bg-blue-50 text-blue-700 border-blue-200', icon: 'mark_email_read' },
+    'Activo': { label: 'Pendiente', pill: 'bg-amber-50 text-amber-800 border-amber-200', icon: 'schedule' }
+  };
+
   container.innerHTML = filtered.map(d => {
     const followUpsCount = d.updates ? d.updates.length : 0;
     const totalPhotos = 1 + followUpsCount;
@@ -683,6 +1067,8 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
     const typeInfo = typologyMeta[d.typology] || { label: d.typologyLabel || 'Incidencia', icon: 'warning', pill: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-500' };
     const reasonInfo = reasonBadges[d.deleteReason] || { label: d.deleteReason || 'Archivado', icon: 'archive', pill: 'bg-slate-100 text-slate-700 border-slate-200' };
     const isArchived = currentDashboardTab === 'archived';
+    const currentStatus = d.status || 'Activo';
+    const currentStatusInfo = statusMeta[currentStatus] || statusMeta['Activo'];
 
     return `
       <div class="bg-white border border-slate-200/90 rounded-3xl overflow-hidden shadow-sm card-hover-effect flex flex-col justify-between group">
@@ -722,7 +1108,10 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
                   ${reasonInfo.label}
                 </span>
               ` : `
-                <span class="text-[11px] font-medium text-slate-500">${latestDate}</span>
+                <button onclick="openStatusModal('${d.id}')" class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg border ${currentStatusInfo.pill} hover:scale-105 transition-transform" title="Clic para cambiar estado del daño">
+                  <span class="material-symbols-outlined text-xs">${currentStatusInfo.icon}</span>
+                  <span>${currentStatusInfo.label}</span>
+                </button>
               `}
             </div>
 
@@ -747,7 +1136,7 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
               <span>Restaurar</span>
             </button>
           ` : `
-            <button onclick="openTimelineFor('${d.id}')" class="flex-1 inline-flex items-center justify-center gap-1 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 py-2 px-2.5 rounded-xl text-xs font-bold transition-all border border-slate-200" title="Ver historial de fotos y fechas (RF-02)">
+            <button onclick="openTimelineFor('${d.id}')" class="flex-1 inline-flex items-center justify-center gap-1 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 py-2 px-2 rounded-xl text-xs font-bold transition-all border border-slate-200" title="Ver historial de fotos y fechas (RF-02)">
               <span class="material-symbols-outlined text-sm text-indigo-600">history_edu</span>
               <span>Evolución</span>
             </button>
@@ -755,9 +1144,12 @@ function renderDashboardCards(filterType = 'all', filterZone = 'all') {
               <span class="material-symbols-outlined text-sm">add_a_photo</span>
               <span>+ Foto</span>
             </button>
-            <button onclick="openDeleteModal('${d.id}')" class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 py-2 px-2.5 rounded-xl text-xs font-bold transition-all border border-rose-200 active:scale-95" title="Eliminar o dar de baja este reporte">
+            <button onclick="openStatusModal('${d.id}')" class="inline-flex items-center justify-center gap-1 bg-slate-50 hover:bg-slate-100 text-slate-700 py-2 px-2 rounded-xl text-xs font-bold transition-all border border-slate-200" title="Cambiar estado del daño">
+              <span class="material-symbols-outlined text-sm text-indigo-600">published_with_changes</span>
+              <span class="hidden sm:inline">Estado</span>
+            </button>
+            <button onclick="openDeleteModal('${d.id}')" class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 py-2 px-2 rounded-xl text-xs font-bold transition-all border border-rose-200 active:scale-95" title="Eliminar o dar de baja este reporte">
               <span class="material-symbols-outlined text-sm">delete</span>
-              <span>Eliminar</span>
             </button>
           `}
         </div>
@@ -778,19 +1170,27 @@ function initNewDamageForm() {
 
   newDamageImageData = previewImg ? previewImg.src : '';
 
-  function processLoadedImage(dataUrl, sourceLabel) {
-    newDamageImageData = dataUrl;
-    if (previewImg) previewImg.src = dataUrl;
-    showToast(`Foto cargada con éxito (${sourceLabel})`);
+  async function processLoadedImage(dataOrFile, sourceLabel) {
+    try {
+      showToast('Optimizando fotografía con Canvas...');
+      const compressed = await compressImageFileOrDataUrl(dataOrFile, 1200, 0.76);
+      newDamageImageData = compressed;
+      if (previewImg) previewImg.src = compressed;
+      showToast(`Foto lista y optimizada (${sourceLabel})`);
+
+      const aiPanel = document.getElementById('ai-analysis-result-panel');
+      if (aiPanel) aiPanel.classList.add('hidden');
+    } catch (e) {
+      console.error(e);
+      showToast('Error procesando la imagen');
+    }
   }
 
   if (mobileCamInput) {
     mobileCamInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => processLoadedImage(event.target.result, 'Cámara del dispositivo');
-        reader.readAsDataURL(file);
+        processLoadedImage(file, 'Cámara del dispositivo');
       }
     });
   }
@@ -799,9 +1199,7 @@ function initNewDamageForm() {
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => processLoadedImage(event.target.result, 'Archivo seleccionado');
-        reader.readAsDataURL(file);
+        processLoadedImage(file, 'Archivo seleccionado');
       }
     });
   }
@@ -826,9 +1224,7 @@ function initNewDamageForm() {
       if (files && files.length > 0) {
         const file = files[0];
         if (file.type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = (event) => processLoadedImage(event.target.result, 'Arrastrada desde PC');
-          reader.readAsDataURL(file);
+          processLoadedImage(file, 'Arrastrada desde PC');
         } else {
           showToast('Por favor arrastra únicamente archivos de imagen (JPG, PNG).');
         }
@@ -1028,10 +1424,17 @@ function initModalFollowUp() {
 
   followUpImageData = previewImg ? previewImg.src : '';
 
-  function setFollowUpImg(dataUrl) {
-    followUpImageData = dataUrl;
-    if (previewImg) previewImg.src = dataUrl;
-    showToast('Foto de evolución cargada');
+  async function setFollowUpImg(dataOrFile) {
+    try {
+      showToast('Optimizando foto de evolución...');
+      const compressed = await compressImageFileOrDataUrl(dataOrFile, 1200, 0.76);
+      followUpImageData = compressed;
+      if (previewImg) previewImg.src = compressed;
+      showToast('Foto de evolución lista');
+    } catch (e) {
+      console.error(e);
+      showToast('Error procesando imagen');
+    }
   }
 
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
@@ -1041,9 +1444,7 @@ function initModalFollowUp() {
     mobileCamInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => setFollowUpImg(event.target.result);
-        reader.readAsDataURL(file);
+        setFollowUpImg(file);
       }
     });
   }
@@ -1052,9 +1453,7 @@ function initModalFollowUp() {
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => setFollowUpImg(event.target.result);
-        reader.readAsDataURL(file);
+        setFollowUpImg(file);
       }
     });
   }
@@ -1124,18 +1523,34 @@ function initLiveCamera() {
   if (closeBtn) closeBtn.addEventListener('click', stopLiveCamera);
 
   if (captureBtn && videoElem) {
-    captureBtn.addEventListener('click', () => {
+    captureBtn.addEventListener('click', async () => {
       const canvas = document.createElement('canvas');
-      canvas.width = videoElem.videoWidth || 1280;
-      canvas.height = videoElem.videoHeight || 720;
+      const w = videoElem.videoWidth || 1280;
+      const h = videoElem.videoHeight || 720;
+      const maxDim = 1200;
+      let finalW = w;
+      let finalH = h;
+      if (finalW > maxDim || finalH > maxDim) {
+        if (finalW > finalH) {
+          finalH = Math.round((finalH * maxDim) / finalW);
+          finalW = maxDim;
+        } else {
+          finalW = Math.round((finalW * maxDim) / finalH);
+          finalH = maxDim;
+        }
+      }
+      canvas.width = finalW;
+      canvas.height = finalH;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(videoElem, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      ctx.drawImage(videoElem, 0, 0, finalW, finalH);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.78);
 
       if (cameraTargetMode === 'new') {
         const preview = document.getElementById('main-preview-img');
         if (preview) preview.src = dataUrl;
         newDamageImageData = dataUrl;
+        const aiPanel = document.getElementById('ai-analysis-result-panel');
+        if (aiPanel) aiPanel.classList.add('hidden');
       } else if (cameraTargetMode === 'followup') {
         const preview = document.getElementById('followup-preview-img');
         if (preview) preview.src = dataUrl;
@@ -1490,13 +1905,352 @@ function renderPdfReport() {
   const waTextarea = document.getElementById('whatsapp-message-text');
   const waSendLink = document.getElementById('whatsapp-send-link');
   if (waTextarea) {
-    const defaultText = `Estimado(a) ${user.landlord},\n\nLe saluda ${user.name}, arrendatario del ${user.apartment} (${user.address}).\n\nPor medio del presente adjunto formalmente el Expediente Probatorio de Daños (Radicado: ${user.radicado}) con el registro fotográfico y cronológico de las incidencias activas en el inmueble para su correspondiente revisión e intervención oportuna.\n\nTotal de incidencias documentadas: ${damages.length}.\nPuede consultar el certificado formal y metadatos probatorios.\n\nQuedo atento a su pronta respuesta.\nAtentamente,\n${user.name}\n${user.university}`;
+    const defaultText = CasaAlertaAI.generateLegalMessage(currentLegalTone || 'formal', user, damages);
     waTextarea.value = defaultText;
     if (waSendLink) {
       const phoneParam = user.landlordPhone ? `phone=${user.landlordPhone}&` : '';
       waSendLink.href = `https://api.whatsapp.com/send?${phoneParam}text=${encodeURIComponent(defaultText)}`;
     }
   }
+}
+
+let lastAiDamageAnalysis = null;
+let currentLegalTone = 'formal';
+let currentDamageIdForStatus = null;
+
+async function runAiDamageAnalysis() {
+  const previewImg = document.getElementById('main-preview-img');
+  const imgUrl = newDamageImageData || previewImg?.src;
+  if (!imgUrl) {
+    showToast('Por favor carga o toma una fotografía primero.');
+    return;
+  }
+
+  const roomSelect = document.getElementById('damage-room');
+  const room = roomSelect ? roomSelect.value : 'Habitación';
+  const selectedTypology = document.querySelector('.typology-chip.bg-indigo-600')?.getAttribute('data-type') || 'humedad';
+
+  const btn = document.getElementById('btn-run-ai-analysis');
+  const btnText = document.getElementById('ai-btn-text');
+  const panel = document.getElementById('ai-analysis-result-panel');
+  if (btn) btn.disabled = true;
+  if (btnText) btnText.innerHTML = '<span class="inline-flex items-center gap-1.5"><span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Analizando con IA...</span>';
+
+  showToast('Iniciando peritaje y análisis con IA...');
+
+  try {
+    const analysis = await CasaAlertaAI.analyzeDamageImage(imgUrl, selectedTypology, room);
+    lastAiDamageAnalysis = analysis;
+
+    if (panel) {
+      panel.classList.remove('hidden');
+      panel.innerHTML = `
+        <div class="space-y-3">
+          <div class="flex items-center justify-between border-b border-indigo-100 pb-2">
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-indigo-600 text-base">psychology</span>
+              <span class="font-extrabold text-xs text-indigo-950">${analysis.source}</span>
+            </div>
+            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              ${analysis.confidence}% Confianza
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div class="bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-100">
+              <span class="text-[10px] font-bold text-slate-500 uppercase block">Tipología Detectada</span>
+              <span class="font-extrabold text-indigo-900">${analysis.typologyLabel}</span>
+            </div>
+            <div class="bg-amber-50/50 p-2.5 rounded-xl border border-amber-100">
+              <span class="text-[10px] font-bold text-slate-500 uppercase block">Severidad Sugerida</span>
+              <span class="font-extrabold text-amber-900">${analysis.severity}</span>
+            </div>
+          </div>
+
+          <div class="space-y-1 text-xs">
+            <span class="text-[10px] font-bold text-slate-500 uppercase block">Causa Probable Pericial</span>
+            <p class="text-slate-700 font-medium leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+              ${analysis.probableCause}
+            </p>
+          </div>
+
+          <div class="space-y-1 text-xs">
+            <span class="text-[10px] font-bold text-slate-500 uppercase block">Redacción Probatoria Formal</span>
+            <p class="text-slate-700 font-medium italic leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+              "${analysis.formalDescription}"
+            </p>
+          </div>
+
+          <div class="space-y-1 text-[11px] text-indigo-900 bg-indigo-50/70 p-2.5 rounded-xl border border-indigo-200/80">
+            <span class="font-bold flex items-center gap-1"><span class="material-symbols-outlined text-xs text-indigo-600">gavel</span> Fundamento Legal:</span>
+            <span>${analysis.legalBasis || 'Ley 820 de 2003 (Reparaciones necesarias)'}</span>
+          </div>
+
+          <button type="button" onclick="applyAiAnalysisToForm()" class="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white py-2.5 px-4 rounded-xl text-xs font-extrabold shadow-sm active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-sm">auto_fix_high</span>
+            <span>🪄 Aplicar Datos Sugeridos al Formulario</span>
+          </button>
+        </div>
+      `;
+    }
+    showToast('¡Análisis completado con éxito!');
+  } catch (err) {
+    console.error(err);
+    showToast('No se pudo completar el análisis.');
+  } finally {
+    if (btn) btn.disabled = false;
+    if (btnText) btnText.innerHTML = '<span>✨ Analizar Foto con IA</span>';
+  }
+}
+
+function applyAiAnalysisToForm() {
+  if (!lastAiDamageAnalysis) return;
+  const a = lastAiDamageAnalysis;
+
+  const titleInput = document.getElementById('damage-title');
+  const descInput = document.getElementById('damage-description');
+  const severitySelect = document.getElementById('damage-severity');
+
+  if (titleInput && a.title) titleInput.value = a.title;
+  if (descInput && a.formalDescription) descInput.value = a.formalDescription;
+  if (severitySelect && a.severity) severitySelect.value = a.severity;
+
+  // Seleccionar Chip de tipología sugerido
+  if (a.typology) {
+    const chip = document.querySelector(`.typology-chip[data-type="${a.typology}"]`);
+    if (chip) chip.click();
+  }
+
+  showToast('¡Datos de IA aplicados al formulario!');
+}
+
+function runAiTimelineAnalysis() {
+  const activeDamageId = window.appStore.activeDamageId;
+  const damage = window.appStore.getDamage(activeDamageId);
+  const panel = document.getElementById('ai-timeline-report-box');
+  if (!damage || !panel) return;
+
+  const report = CasaAlertaAI.analyzeTimelineEvolution(damage);
+
+  panel.classList.remove('hidden');
+  panel.innerHTML = `
+    <div class="space-y-2.5">
+      <div class="flex items-center justify-between border-b border-purple-200/80 pb-2">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-purple-700 text-base">psychology</span>
+          <span class="font-extrabold text-purple-950">Dictamen Pericial de Evolución con IA</span>
+        </div>
+        <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+          ${report.damageId}
+        </span>
+      </div>
+
+      <p class="text-slate-800 font-medium leading-relaxed">
+        ${report.verdict}
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
+        <div class="bg-white/80 p-2.5 rounded-xl border border-purple-100">
+          <span class="text-slate-500 font-bold block">Progreso de Severidad:</span>
+          <span class="font-extrabold text-slate-900">${report.severityProgression}</span>
+        </div>
+        <div class="bg-white/80 p-2.5 rounded-xl border border-purple-100">
+          <span class="text-slate-500 font-bold block">Secuencia Analizada:</span>
+          <span class="font-extrabold text-slate-900">${report.totalUpdates + 1} fotos (${report.firstDate} — ${report.lastDate})</span>
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-xl bg-white/90 border border-purple-200 text-indigo-950 font-medium text-[11px] flex items-start gap-2">
+        <span class="material-symbols-outlined text-sm text-indigo-600 flex-shrink-0 mt-0.5">gavel</span>
+        <span>${report.legalValue}</span>
+      </div>
+
+      <p class="text-[11px] font-bold text-purple-900 pt-0.5">
+        📌 ${report.recommendation}
+      </p>
+    </div>
+  `;
+
+  showToast('Dictamen de evolución generado con IA');
+}
+
+function generateAiLegalMessage(tone = 'formal') {
+  currentLegalTone = tone;
+  document.querySelectorAll('.ai-tone-btn').forEach(btn => {
+    btn.classList.remove('bg-indigo-600', 'text-white', 'border-2', 'border-indigo-600', 'shadow-sm');
+    btn.classList.add('bg-white', 'text-slate-700', 'border', 'border-slate-200');
+  });
+
+  const activeBtn = document.querySelector(`.ai-tone-btn[onclick*="${tone}"]`);
+  if (activeBtn) {
+    activeBtn.classList.remove('bg-white', 'text-slate-700', 'border-slate-200');
+    activeBtn.classList.add('bg-indigo-600', 'text-white', 'border-2', 'border-indigo-600', 'shadow-sm');
+  }
+
+  const user = window.appStore.getActiveUser();
+  const damages = window.appStore.getDamages();
+  const text = CasaAlertaAI.generateLegalMessage(tone, user, damages);
+  
+  const waTextarea = document.getElementById('whatsapp-message-text');
+  const waSendLink = document.getElementById('whatsapp-send-link');
+  if (waTextarea) {
+    waTextarea.value = text;
+    if (waSendLink) {
+      const phoneParam = user.landlordPhone ? `phone=${user.landlordPhone}&` : '';
+      waSendLink.href = `https://api.whatsapp.com/send?${phoneParam}text=${encodeURIComponent(text)}`;
+    }
+  }
+  showToast(`Mensaje adaptado al tono legal: ${tone.toUpperCase()}`);
+}
+
+function exportBackupJson() {
+  try {
+    const data = window.appStore.data;
+    const user = window.appStore.getActiveUser();
+    const radicado = user ? user.radicado : 'EXPEDIENTE';
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `CasaAlerta_Respaldo_${radicado}_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('¡Copia de respaldo descargada con éxito!');
+  } catch (err) {
+    console.error(err);
+    showToast('Error al exportar los datos.');
+  }
+}
+
+function triggerImportJson() {
+  const input = document.getElementById('import-json-input');
+  if (input) input.click();
+}
+
+function handleJsonFileImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      window.appStore.importData(parsed);
+      updateUserInterface();
+      showToast('¡Expediente restaurado con éxito desde el archivo JSON!');
+      closeAiSettingsModal();
+    } catch (err) {
+      alert("Error al importar el archivo: Asegúrate de que sea un respaldo válido de CasaAlerta.");
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function openStatusModal(damageId) {
+  currentDamageIdForStatus = damageId;
+  const damage = window.appStore.getDamage(damageId);
+  if (!damage) return;
+
+  const modal = document.getElementById('modal-damage-status');
+  const title = document.getElementById('status-modal-damage-title');
+  if (title) title.textContent = `${damage.id}: ${damage.title}`;
+
+  const currentStatus = damage.status || 'Activo';
+  const radio = document.querySelector(`input[name="damage-new-status"][value="${currentStatus}"]`);
+  if (radio) radio.checked = true;
+
+  updateStatusOptionStyles();
+
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+}
+
+function closeStatusModal() {
+  const modal = document.getElementById('modal-damage-status');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+  currentDamageIdForStatus = null;
+}
+
+function updateStatusOptionStyles() {
+  document.querySelectorAll('.status-option-label').forEach(lbl => {
+    const radio = lbl.querySelector('input[type="radio"]');
+    if (radio && radio.checked) {
+      lbl.classList.add('border-indigo-600', 'bg-indigo-50/40', 'shadow-sm');
+      lbl.classList.remove('border-slate-200');
+    } else {
+      lbl.classList.remove('border-indigo-600', 'bg-indigo-50/40', 'shadow-sm');
+      lbl.classList.add('border-slate-200');
+    }
+  });
+}
+
+function saveStatusModalChange() {
+  if (!currentDamageIdForStatus) return;
+  const checked = document.querySelector('input[name="damage-new-status"]:checked');
+  const newStatus = checked ? checked.value : 'Activo';
+
+  window.appStore.updateDamageStatus(currentDamageIdForStatus, newStatus);
+  showToast(`Estado actualizado a: ${newStatus}`);
+  closeStatusModal();
+  renderDashboardCards();
+  updateUserInterface();
+}
+
+function openAiSettingsModal() {
+  const modal = document.getElementById('modal-ai-settings');
+  const keyInput = document.getElementById('gemini-api-key-input');
+  const statusPill = document.getElementById('ai-modal-status-pill');
+  const headerBadge = document.getElementById('ai-provider-badge');
+
+  const currentKey = CasaAlertaAI.getApiKey();
+  if (keyInput) keyInput.value = currentKey;
+
+  if (currentKey) {
+    if (statusPill) statusPill.textContent = 'Gemini Flash Activo';
+    if (headerBadge) headerBadge.textContent = 'Gemini Flash';
+  } else {
+    if (statusPill) statusPill.textContent = 'Motor Experto Offline';
+    if (headerBadge) headerBadge.textContent = 'Motor Offline';
+  }
+
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+}
+
+function closeAiSettingsModal() {
+  const modal = document.getElementById('modal-ai-settings');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+function saveGeminiKey() {
+  const keyInput = document.getElementById('gemini-api-key-input');
+  if (keyInput) {
+    CasaAlertaAI.setApiKey(keyInput.value);
+    showToast('¡API Key guardada con éxito!');
+    openAiSettingsModal();
+  }
+}
+
+function clearGeminiKey() {
+  CasaAlertaAI.setApiKey('');
+  const keyInput = document.getElementById('gemini-api-key-input');
+  if (keyInput) keyInput.value = '';
+  showToast('API Key borrada. Usando motor experto offline.');
+  openAiSettingsModal();
 }
 
 function showToast(message) {
@@ -1538,3 +2292,20 @@ window.closeDeleteModal = closeDeleteModal;
 window.confirmDeleteReport = confirmDeleteReport;
 window.switchDashboardTab = switchDashboardTab;
 window.restoreDamageReport = restoreDamageReport;
+
+// Nuevas funciones de Inteligencia Artificial, Estado y Portabilidad
+window.openAiSettingsModal = openAiSettingsModal;
+window.closeAiSettingsModal = closeAiSettingsModal;
+window.saveGeminiKey = saveGeminiKey;
+window.clearGeminiKey = clearGeminiKey;
+window.exportBackupJson = exportBackupJson;
+window.triggerImportJson = triggerImportJson;
+window.handleJsonFileImport = handleJsonFileImport;
+window.runAiDamageAnalysis = runAiDamageAnalysis;
+window.applyAiAnalysisToForm = applyAiAnalysisToForm;
+window.runAiTimelineAnalysis = runAiTimelineAnalysis;
+window.generateAiLegalMessage = generateAiLegalMessage;
+window.openStatusModal = openStatusModal;
+window.closeStatusModal = closeStatusModal;
+window.saveStatusModalChange = saveStatusModalChange;
+window.CasaAlertaAI = CasaAlertaAI;

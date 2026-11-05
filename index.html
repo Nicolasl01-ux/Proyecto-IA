@@ -168,6 +168,26 @@
           <span>Reporte PDF & WhatsApp</span>
         </a>
       </nav>
+
+      <!-- Herramientas Pro & IA en Sidebar -->
+      <div class="px-4 mt-3 pt-3 border-t border-slate-100">
+        <span class="text-[10px] uppercase font-bold text-slate-400 px-2 tracking-wider">Inteligencia Artificial & Datos</span>
+        <div class="flex flex-col gap-1 mt-1.5">
+          <button onclick="openAiSettingsModal()" class="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-slate-600 hover:bg-purple-50 hover:text-purple-700 transition-all text-xs font-semibold text-left">
+            <span class="material-symbols-outlined text-base text-purple-600">auto_awesome</span>
+            <span>Configurar IA (Gemini)</span>
+          </button>
+          <button onclick="exportBackupJson()" class="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition-all text-xs font-semibold text-left">
+            <span class="material-symbols-outlined text-base text-indigo-600">download</span>
+            <span>Exportar Respaldo (JSON)</span>
+          </button>
+          <button onclick="triggerImportJson()" class="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all text-xs font-semibold text-left">
+            <span class="material-symbols-outlined text-base text-emerald-600">upload_file</span>
+            <span>Importar Respaldo (JSON)</span>
+          </button>
+          <input type="file" id="import-json-input" accept=".json" class="hidden" onchange="handleJsonFileImport(event)" />
+        </div>
+      </div>
     </div>
 
     <!-- Tarjeta de Inmueble Actual (Abajo) -->
@@ -218,6 +238,12 @@
           <span class="material-symbols-outlined text-base">add_a_photo</span>
           <span class="hidden sm:inline">Nuevo Daño</span>
         </a>
+
+        <!-- Botón IA & Respaldo en Header -->
+        <button onclick="openAiSettingsModal()" class="inline-flex items-center gap-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95" title="Configurar IA (Gemini) y Copia de Seguridad">
+          <span class="material-symbols-outlined text-base text-purple-600">auto_awesome</span>
+          <span class="hidden sm:inline">IA & Respaldo</span>
+        </button>
 
         <div class="h-6 w-[1px] bg-slate-200"></div>
 
@@ -435,8 +461,35 @@
           <span class="text-[11px] text-slate-500 hidden sm:inline font-medium">Gestiona y retira daños reparados, por mudanza o vencidos</span>
         </div>
 
-        <!-- Filtros y Barra de Búsqueda Intuitiva -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+        <!-- Barra de Búsqueda y Filtros de Estado -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-2">
+          <!-- Búsqueda en Vivo -->
+          <div class="relative flex-1 max-w-md">
+            <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-sm">search</span>
+            <input type="text" id="dashboard-search-input" placeholder="🔍 Buscar por daño, habitación o descripción..." class="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm font-medium" />
+            <button id="clear-search-btn" class="hidden absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
+              <span class="material-symbols-outlined text-xs">close</span>
+            </button>
+          </div>
+
+          <!-- Filtro por Estado del Daño -->
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0" id="status-filters-group">
+            <span class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mr-1">Estado:</span>
+            <button data-status="all" class="status-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all">Todos</button>
+            <button data-status="Activo" class="status-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:border-amber-300 hover:text-amber-700 transition-all flex items-center gap-1">
+              <span>🟡</span><span>Pendientes</span>
+            </button>
+            <button data-status="Notificado" class="status-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:border-blue-300 hover:text-blue-700 transition-all flex items-center gap-1">
+              <span>📬</span><span>Notificados</span>
+            </button>
+            <button data-status="Reparado" class="status-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:border-emerald-300 hover:text-emerald-700 transition-all flex items-center gap-1">
+              <span>✅</span><span>Reparados</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filtros por Tipología y Zona -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-xs font-extrabold text-slate-500 uppercase tracking-wider mr-1">Filtrar por tipo:</span>
             <button data-filter="all" class="filter-type-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all">Todos</button>
@@ -594,6 +647,37 @@
                   </div>
                 </div>
               </div>
+
+              <!-- ============================================== -->
+              <!-- MÓDULO INTELIGENTE: ASISTENTE DE VISIÓN CON IA -->
+              <!-- ============================================== -->
+              <div class="bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-slate-50 rounded-2xl p-4 border border-indigo-200/90 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-sm flex-shrink-0">
+                      <span class="material-symbols-outlined text-base">auto_awesome</span>
+                    </div>
+                    <div>
+                      <h4 class="text-xs font-extrabold text-slate-900">Asistente de Visión & Peritaje con IA</h4>
+                      <p class="text-[10px] text-slate-500 font-medium">Inspecciona la foto con IA para autocompletar tipología, severidad y redacción probatoria.</p>
+                    </div>
+                  </div>
+                  <button type="button" onclick="openAiSettingsModal()" class="text-[10px] text-indigo-700 bg-white hover:bg-indigo-50 font-extrabold px-2 py-1 rounded-lg border border-indigo-200 transition-colors flex items-center gap-1 shadow-xs" title="Configurar Google Gemini API Key">
+                    <span class="material-symbols-outlined text-xs text-indigo-600">settings</span>
+                    <span id="ai-provider-badge">Gemini / IA</span>
+                  </button>
+                </div>
+
+                <button type="button" id="btn-run-ai-analysis" onclick="runAiDamageAnalysis()" class="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white py-2.5 px-4 rounded-xl text-xs font-extrabold shadow-md shadow-indigo-500/20 active:scale-95 transition-all">
+                  <span class="material-symbols-outlined text-base">auto_awesome</span>
+                  <span id="ai-btn-text">✨ Analizar Foto con IA</span>
+                </button>
+
+                <!-- Panel de Resultado del Análisis IA -->
+                <div id="ai-analysis-result-panel" class="hidden bg-white rounded-xl p-3.5 border border-indigo-100 shadow-sm space-y-3">
+                  <!-- Se llena dinámicamente con app.js -->
+                </div>
+              </div>
             </div>
           </div>
 
@@ -738,10 +822,21 @@
                 <p class="text-[11px] text-slate-500">Demuestra al arrendador si el daño ha aumentado desde que entraste.</p>
               </div>
             </div>
-            <button onclick="openFollowUpModal(window.appStore.activeDamageId)" class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-indigo-500/20 active:scale-95">
-              <span class="material-symbols-outlined text-sm">add_a_photo</span>
-              <span>+ Añadir Foto Posterior (RF-02)</span>
-            </button>
+            <div class="flex flex-wrap items-center gap-2">
+              <button onclick="runAiTimelineAnalysis()" class="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-purple-500/20 active:scale-95">
+                <span class="material-symbols-outlined text-sm">auto_awesome</span>
+                <span>✨ Analizar Evolución con IA</span>
+              </button>
+              <button onclick="openFollowUpModal(window.appStore.activeDamageId)" class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-indigo-500/20 active:scale-95">
+                <span class="material-symbols-outlined text-sm">add_a_photo</span>
+                <span>+ Añadir Foto Posterior (RF-02)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panel de Dictamen IA de Evolución -->
+          <div id="ai-timeline-report-box" class="hidden bg-gradient-to-r from-purple-50 via-indigo-50/70 to-purple-50/50 p-4 rounded-2xl border border-purple-200/90 text-xs space-y-2">
+            <!-- Cargado dinámicamente -->
           </div>
 
           <!-- Dos Columnas Comparativas -->
@@ -938,6 +1033,32 @@
             <div>
               <h2 class="text-base font-extrabold text-slate-900">Envío Directo al Arrendador vía WhatsApp (RF-05)</h2>
               <p class="text-xs text-slate-500 font-medium">Mensaje formal pre-redactado con los datos de tu apartamento y radicado probatorio.</p>
+            </div>
+          </div>
+
+          <!-- ASISTENTE LEGAL CON IA (LEY 820 DE 2003) -->
+          <div class="bg-gradient-to-br from-indigo-50/70 via-purple-50/40 to-slate-50 p-4 rounded-2xl border border-indigo-100 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-indigo-600 text-lg">gavel</span>
+                <span class="text-xs font-extrabold text-slate-900">Asistente Legal de Reclamación con IA (Ley 820/2003 de Colombia)</span>
+              </div>
+              <span class="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-lg border border-indigo-200">Asistencia Jurídica</span>
+            </div>
+            <p class="text-[11px] text-slate-600">Selecciona el tono legal del mensaje y la IA lo adaptará con los fundamentos legales correspondientes:</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button type="button" onclick="generateAiLegalMessage('preventivo')" class="ai-tone-btn p-2.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:border-indigo-400 hover:text-indigo-700 text-left flex flex-col gap-0.5 transition-all">
+                <span class="flex items-center gap-1 text-emerald-600 font-extrabold"><span>🟢</span> Preventivo</span>
+                <span class="text-[10px] text-slate-500 font-normal">Aviso inicial cordial y colaborativo</span>
+              </button>
+              <button type="button" onclick="generateAiLegalMessage('formal')" class="ai-tone-btn p-2.5 rounded-xl text-xs font-bold bg-indigo-600 text-white border-2 border-indigo-600 text-left flex flex-col gap-0.5 transition-all shadow-sm">
+                <span class="flex items-center gap-1 text-white font-extrabold"><span>⚖️</span> Formal (Ley 820)</span>
+                <span class="text-[10px] text-indigo-100 font-normal">Cita Arts. 19 y 20 de reparaciones</span>
+              </button>
+              <button type="button" onclick="generateAiLegalMessage('urgente')" class="ai-tone-btn p-2.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:border-rose-400 hover:text-rose-700 text-left flex flex-col gap-0.5 transition-all">
+                <span class="flex items-center gap-1 text-rose-600 font-extrabold"><span>🚨</span> Urgente / Reiterado</span>
+                <span class="text-[10px] text-slate-500 font-normal">Advertencia por daños a salud y depósito</span>
+              </button>
             </div>
           </div>
 
@@ -1256,6 +1377,151 @@
         <button type="button" id="confirm-delete-btn" onclick="confirmDeleteReport()" class="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white shadow-md shadow-rose-500/25 active:scale-95 transition-all flex items-center gap-1.5">
           <span class="material-symbols-outlined text-base">delete</span>
           <span>Confirmar Eliminación</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: CONFIGURACIÓN IA & COPIA RESPALDO   -->
+  <!-- ========================================== -->
+  <div id="modal-ai-settings" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg rounded-3xl border border-slate-200 shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3.5">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 text-white flex items-center justify-center font-bold shadow-md shadow-purple-500/20">
+            <span class="material-symbols-outlined text-xl">auto_awesome</span>
+          </div>
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">Inteligencia Artificial & Respaldos</h2>
+            <p class="text-xs text-slate-500">Configuración de modelos de IA, visión y exportación de datos.</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeAiSettingsModal()" class="text-slate-400 hover:text-slate-700 p-1 rounded-xl">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <!-- Configuración de API Key de Gemini -->
+      <div class="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/70 to-purple-50/50 border border-indigo-100 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-extrabold text-indigo-900 flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-indigo-600 text-base">key</span>
+            <span>API Key de Google Gemini (Opcional)</span>
+          </span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-indigo-700 border border-indigo-200" id="ai-modal-status-pill">
+            Motor Integrado Activo
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-600 leading-relaxed font-medium">
+          CasaAlerta funciona 100% con un <strong>motor pericial experto offline</strong>. Si deseas conectar visión artificial avanzada en vivo con <strong>Gemini 1.5/2.0 Flash</strong>, ingresa tu clave gratuita de Google AI Studio:
+        </p>
+        <div class="space-y-1.5">
+          <input type="password" id="gemini-api-key-input" placeholder="AIzaSy..." class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono" />
+          <div class="flex items-center justify-between text-[11px] pt-1">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-0.5 underline">
+              <span>Obtener API Key gratis en Google</span>
+              <span class="material-symbols-outlined text-xs">open_in_new</span>
+            </a>
+            <div class="flex gap-2">
+              <button type="button" onclick="clearGeminiKey()" class="text-slate-500 hover:text-rose-600 font-bold text-[10px] px-2 py-1 rounded-lg border border-slate-200 hover:border-rose-300">
+                Borrar Clave
+              </button>
+              <button type="button" onclick="saveGeminiKey()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[10px] px-3 py-1 rounded-lg shadow-sm">
+                Guardar Clave
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Respaldo de Datos (Exportar / Importar) -->
+      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+        <span class="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-slate-700 text-base">cloud_sync</span>
+          <span>Copia de Seguridad y Portabilidad</span>
+        </span>
+        <p class="text-[11px] text-slate-600 leading-relaxed">
+          Descarga un archivo con todos tus daños, fotos y fechas para no perderlos si limpias tu navegador o cambias de dispositivo.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+          <button type="button" onclick="exportBackupJson()" class="inline-flex items-center justify-center gap-1.5 bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 p-2.5 rounded-xl text-xs font-extrabold transition-all shadow-sm">
+            <span class="material-symbols-outlined text-base">download</span>
+            <span>Exportar Copia (JSON)</span>
+          </button>
+          <button type="button" onclick="triggerImportJson()" class="inline-flex items-center justify-center gap-1.5 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 p-2.5 rounded-xl text-xs font-extrabold transition-all shadow-sm">
+            <span class="material-symbols-outlined text-base">upload_file</span>
+            <span>Importar Copia (JSON)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2 border-t border-slate-100">
+        <button type="button" onclick="closeAiSettingsModal()" class="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: CAMBIAR ESTADO DEL DAÑO             -->
+  <!-- ========================================== -->
+  <div id="modal-damage-status" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+            <span class="material-symbols-outlined text-xl">published_with_changes</span>
+          </div>
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">Estado de la Incidencia</h2>
+            <p class="text-xs text-slate-500" id="status-modal-damage-title">DM-01</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeStatusModal()" class="text-slate-400 hover:text-slate-700 p-1 rounded-xl">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="space-y-2.5">
+        <label class="status-option-label flex items-start gap-3 p-3 rounded-2xl border-2 border-amber-400 bg-amber-50/30 cursor-pointer transition-all">
+          <input type="radio" name="damage-new-status" value="Activo" checked class="mt-1 text-amber-600 focus:ring-amber-500" />
+          <div class="flex flex-col">
+            <span class="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+              <span>🟡</span> <span>Pendiente / Activo</span>
+            </span>
+            <span class="text-[11px] text-slate-600 mt-0.5">El daño aún no ha sido notificado formalmente o está en espera de reporte.</span>
+          </div>
+        </label>
+
+        <label class="status-option-label flex items-start gap-3 p-3 rounded-2xl border-2 border-slate-200 hover:border-blue-300 hover:bg-slate-50 cursor-pointer transition-all">
+          <input type="radio" name="damage-new-status" value="Notificado" class="mt-1 text-blue-600 focus:ring-blue-500" />
+          <div class="flex flex-col">
+            <span class="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+              <span>📬</span> <span>Notificado al Arrendador</span>
+            </span>
+            <span class="text-[11px] text-slate-600 mt-0.5">Ya enviaste el radicado o mensaje formal por WhatsApp o carta.</span>
+          </div>
+        </label>
+
+        <label class="status-option-label flex items-start gap-3 p-3 rounded-2xl border-2 border-slate-200 hover:border-emerald-300 hover:bg-slate-50 cursor-pointer transition-all">
+          <input type="radio" name="damage-new-status" value="Reparado" class="mt-1 text-emerald-600 focus:ring-emerald-500" />
+          <div class="flex flex-col">
+            <span class="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+              <span>✅</span> <span>Reparado / Subsanado</span>
+            </span>
+            <span class="text-[11px] text-slate-600 mt-0.5">El daño fue solucionado satisfactoriamente por el casero o técnico.</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+        <button type="button" onclick="closeStatusModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">
+          Cancelar
+        </button>
+        <button type="button" onclick="saveStatusModalChange()" class="px-5 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
+          Guardar Estado
         </button>
       </div>
     </div>

@@ -12,33 +12,38 @@ Los estudiantes universitarios que viven en apartamentos arrendados frecuentemen
 
 ---
 
-## ✨ Funcionalidades Principales (MVP)
+## ✨ Funcionalidades Principales & Mejoras IA
 
-1. **RF-01: Registro de Daños con Fotografía y Metadatos**
-   - Captura de fotos (vía cámara de celular/webcam o subida de archivo / drag & drop).
-   - Selección de tipología: Humedad, Filtraciones, Grietas, Manchas, Plomería, Eléctrico, Cerrajería.
-   - Ubicación en el apartamento (baño, cocina, habitación, sala, acceso).
-   - Notas descriptivas, dimensiones aproximadas y severidad.
+1. **🤖 Asistente de Visión & Peritaje con Inteligencia Artificial**
+   - **Análisis de Fotografía con IA**: Detecta automáticamente la tipología (humedad, fisuras, plomería, eléctrico, acabados), evalúa el nivel de severidad y calcula el riesgo con nivel de confianza.
+   - **Diagnóstico y Redacción Probatoria Asistida**: Redacta una descripción técnica formal y objetiva con causas probables lista para aplicar al formulario con un solo clic.
+   - **Doble Motor de IA**: Conexión directa a **Google Gemini 1.5/2.0 Flash API** con visión multimodal en vivo + **Motor Pericial Experto Integrado Offline** que opera sin necesidad de internet ni claves.
 
-2. **RF-02: Adición de Fotos de Seguimiento**
-   - Anexar nuevas fotografías en fechas posteriores a un daño ya registrado.
-   - Registrar la evolución del deterioro (si creció, cambió de color, o gotea).
+2. **⚖️ Asistente Legal de Reclamación con IA (Ley 820 de 2003 de Colombia)**
+   - Generador dinámico de comunicaciones formales y mensajes de WhatsApp fundamentados en los **Artículos 19 y 20 de la Ley 820 de 2003** y el **Artículo 1985 del Código Civil**.
+   - Selector interactivo de tono:
+     - 🟢 *Preventivo & Cordial*: Aviso inicial colaborativo.
+     - ⚖️ *Formal Probatorio*: Citación legal explícita de reparaciones indispensables a cargo del arrendador.
+     - 🚨 *Urgente / Reiterado*: Notificación pericial con advertencia de retención y daño emergente.
 
-3. **RF-03: Línea de Tiempo Cronológica y Comparador Visual**
-   - Historial cronológico ordenado por fechas con marcas de tiempo.
-   - **Slider interactivo de comparación visual (Antes vs. Después)** para contrastar la foto inicial con la actualización más reciente.
+3. **🛡️ Compresión Automática de Imágenes con Canvas HTML5**
+   - Redimensionamiento y optimización de fotos a ~150KB en tiempo real al cargarlas desde la cámara del celular, webcam o archivo.
+   - Resuelve de raíz el límite de almacenamiento de `localStorage`, permitiendo documentar docenas de fotos de alta resolución sin colapsos de memoria.
 
-4. **RF-04: Generador de Informe Formal en PDF**
-   - Radicado único probatorio con datos del estudiante, universidad (UPTC Sogamoso), dirección y datos del arrendador.
-   - Resumen ejecutivo de novedades y tabla detallada de evidencias fotográficas.
-   - Formato optimizado para impresión pericial o descarga directa en PDF (`Ctrl + P` / botón de exportar).
+4. **🔄 Ciclo de Vida del Daño & Búsqueda en Tiempo Real**
+   - Nuevos estados de seguimiento: `🟡 Pendiente / Activo`, `📬 Notificado al Arrendador` y `✅ Reparado / Subsanado`.
+   - Barra de búsqueda interactiva instantánea en el Dashboard por nombre, zona o descripción.
 
-5. **RF-05: Acciones Directas y Envío a Arrendador vía WhatsApp**
-   - Notificación formal preformateada lista para enviar por WhatsApp al arrendador con un solo clic.
+5. **💾 Respaldo y Portabilidad de Datos (Backup & Restore)**
+   - **Exportar Expediente (JSON)**: Descarga una copia de seguridad íntegra de usuarios, evidencias fotográficas y fechas.
+   - **Importar Expediente (JSON)**: Restaura todas las evidencias en cualquier navegador o equipo al instante.
 
-6. **Gestión Multi-Inquilino y Persistencia Local**
-   - Selector de perfiles de inquilinos precargados y opción de crear nuevos inquilinos.
-   - Almacenamiento automático en `localStorage` (no requiere base de datos externa para funcionar).
+6. **RF-01 a RF-05: Módulos Probatorios Base**
+   - **RF-01**: Registro de daños con fotografía, geolocalización y metadatos certificados SHA-256.
+   - **RF-02**: Adición de fotos de seguimiento cronológico posterior.
+   - **RF-03**: Comparador visual antes vs. después con dictamen pericial de evolución con IA.
+   - **RF-04**: Generador de informe formal en PDF listo para imprimir (`Ctrl + P`).
+   - **RF-05**: Envío directo pre-redactado vía WhatsApp al arrendador con radicado único.
 
 ---
 

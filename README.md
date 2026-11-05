@@ -2,7 +2,7 @@
 
 > **Aplicación web para estudiantes universitarios en apartamentos arrendados (Sogamoso, Boyacá)**  
 > Repositorio oficial: [Nicolasl01-ux/Proyecto-IA](https://github.com/Nicolasl01-ux/Proyecto-IA)
-
+Link directo: https://nicolasl01-ux.github.io/Proyecto-IA/
 ---
 
 ## 🎯 Problema & Propósito

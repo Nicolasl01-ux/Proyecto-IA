@@ -1,7 +1,7 @@
 # CasaAlerta — Evidencia & Control Probatorio de Daños
 
 > **Aplicación web para estudiantes universitarios en apartamentos arrendados (Sogamoso, Boyacá)**  
-> Repositorio oficial: [Nicolasl01-ux/Proyecto-IA](https://github.com/Nicolasl01-ux/Proyecto-IA)
+> Repositorio oficial: [Nicolasl01-ux/Proyecto-IA](https://nicolasl01-ux.github.io/Proyecto-IA/)
 Link directo: https://nicolasl01-ux.github.io/Proyecto-IA/
 ---
 

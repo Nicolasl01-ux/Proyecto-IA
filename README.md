@@ -14,9 +14,11 @@ Los estudiantes universitarios que viven en apartamentos arrendados frecuentemen
 
 ## ✨ Funcionalidades Principales & Mejoras IA
 
-1. **🤖 Asistente de Visión & Peritaje con Inteligencia Artificial**
-   - **Análisis de Fotografía con IA**: Detecta automáticamente la tipología (humedad, fisuras, plomería, eléctrico, acabados), evalúa el nivel de severidad y calcula el riesgo con nivel de confianza.
-   - **Diagnóstico y Redacción Probatoria Asistida**: Redacta una descripción técnica formal y objetiva con causas probables lista para aplicar al formulario con un solo clic.
+1. **🤖 Asistente de Visión & Peritaje con Inteligencia Artificial ("¿Qué pasa y cómo arreglarlo?")**
+   - **Diagnóstico Automático al Adjuntar Foto**: Al subir o capturar una foto del daño, la IA analiza la imagen y muestra de forma inmediata dos bloques esenciales:
+     - 🔍 **¿Qué es lo que está pasando?**: Diagnóstico explicativo accesible del fenómeno físico/químico, síntomas detectados y riesgos a la salud o infraestructura.
+     - 🛠️ **¿De qué forma se puede arreglar?**: Guía de reparación técnica paso a paso, medidas provisionales de emergencia para el estudiante, aclaración jurídica de **a quién le corresponde pagarlo** (Ley 820 de 2003) y materiales u oficios requeridos.
+   - **Acciones Rápidas**: Botón `🪄 Aplicar Datos al Formulario` y botón `📋 Copiar Guía de Arreglo` para compartirla con el arrendador o contratista por WhatsApp.
    - **Doble Motor de IA**: Conexión directa a **Google Gemini 1.5/2.0 Flash API** con visión multimodal en vivo + **Motor Pericial Experto Integrado Offline** que opera sin necesidad de internet ni claves.
 
 2. **⚖️ Asistente Legal de Reclamación con IA (Ley 820 de 2003 de Colombia)**

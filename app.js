@@ -452,19 +452,39 @@ const CasaAlertaAI = {
         const base64Data = imageDataUrl.includes(',') ? imageDataUrl.split(',')[1] : imageDataUrl;
         const mimeType = imageDataUrl.includes('image/png') ? 'image/png' : 'image/jpeg';
         
-        const prompt = `Eres un perito técnico forense e inspector experto en patologías de edificaciones y arriendos residenciales en Colombia. Analiza minuciosamente esta fotografía tomada por un estudiante universitario en un apartamento arrendado en Sogamoso, Boyacá.
+        const prompt = `Eres un perito técnico forense e ingeniero inspector experto en patologías de edificaciones y arriendos residenciales en Colombia. Analiza minuciosamente esta fotografía tomada por un estudiante en un apartamento arrendado en Sogamoso, Boyacá.
+
+Debes responder con dos focos fundamentales para el estudiante inquilino:
+1. ¿Qué es exactamente lo que está pasando? (diagnóstico físico, síntomas visibles y riesgos).
+2. ¿De qué forma se puede arreglar? (solución definitiva paso a paso, qué puede hacer el estudiante ahora mismo de forma provisional, a quién le corresponde pagarlo y qué materiales u oficios se necesitan).
 
 Responde estrictamente con un JSON plano sin bloques ni formato markdown exterior con esta estructura exacta:
 {
   "typology": "humedad" | "grietas" | "plomeria" | "electrico" | "acabados",
   "typologyLabel": "Humedad" | "Grieta / Fisura" | "Plomería / Fuga" | "Daño Eléctrico" | "Cerrajería / Puerta",
-  "confidence": 94,
-  "title": "Título técnico preciso (máx 10 palabras)",
+  "confidence": 95,
+  "title": "Título técnico preciso del daño (máx 10 palabras)",
   "severity": "Baja" | "Media" | "Alta" | "Crítica",
-  "severityReason": "Explicación del riesgo a la salud, integridad física o daño emergente",
-  "probableCause": "Causa constructiva probable (infiltración pluvial, capilaridad, fatiga o dilatación)",
-  "legalBasis": "Fundamento legal bajo Ley 820 de 2003 (Arts. 19 y 20) y Código Civil Colombiano Art. 1985",
-  "formalDescription": "Descripción formal probatoria con dimensiones aproximadas y signos de avance."
+  "whatIsHappening": {
+    "summary": "Resumen directo y claro en una frase de qué está pasando",
+    "explanation": "Explicación física/química accesible de por qué se originó el daño y qué proceso ocurre en el muro o instalación",
+    "symptoms": ["Síntoma visible 1 detectado en la foto", "Síntoma visible 2", "Síntoma visible 3"],
+    "risks": "Riesgo evaluado para la salud, la integridad física o los bienes del estudiante si no se atiende"
+  },
+  "howToFix": {
+    "definitiveSteps": [
+      "Paso 1: Localizar y cortar/sellar el origen de la anomalía...",
+      "Paso 2: Saneamiento y preparación del área...",
+      "Paso 3: Aplicación de materiales correctivos...",
+      "Paso 4: Acabado final y prueba de funcionamiento..."
+    ],
+    "studentImmediateAction": "Acción preventiva inmediata que el estudiante puede tomar ahora mismo para mitigar el daño sin asumir costos",
+    "whoPays": "ARRENDADOR (Propietario) o ARRENDATARIO, citando la Ley 820 de 2003 de Colombia",
+    "requiredTrade": "Oficio o técnico especializado sugerido (ej: Plomero certificado, albañil impermeabilizador)",
+    "estimatedMaterials": "Materiales típicos sugeridos para la reparación"
+  },
+  "legalBasis": "Fundamento legal Ley 820 de 2003 (Arts. 19 y 20) y Código Civil Colombiano Art. 1985",
+  "formalDescription": "Descripción formal probatoria con dimensiones aproximadas para el radicado oficial"
 }`;
 
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
@@ -509,58 +529,161 @@ Responde estrictamente con un JSON plano sin bloques ni formato markdown exterio
     const knowledgeBase = {
       'humedad': {
         typology: 'humedad',
-        typologyLabel: 'Humedad',
-        confidence: 94,
-        title: `Humedad por infiltración activa con eflorescencia en ${room}`,
+        typologyLabel: 'Humedad & Infiltración',
+        confidence: 96,
+        title: `Infiltración activa de humedad con eflorescencia y moho en ${room}`,
         severity: 'Alta',
-        severityReason: 'Presencia de humedad activa y colonias fúngicas. Riesgo respiratorio para el arrendatario y desprendimiento de estuco.',
-        probableCause: 'Infiltración proveniente de fachada exterior o falla de impermeabilización en losa/bajante de aguas lluvias. No atribuible a condensación ordinaria.',
-        legalBasis: 'Ley 820 de 2003 Art. 19 y Código Civil Art. 1985: Reparación necesaria no locativa a cargo exclusivo del arrendador.',
-        formalDescription: 'Se observa área de humedad activa con diámetro aproximado de 25-35 cm, presentando ampollamiento de la película de pintura, descascaramiento y decoloración amarillenta/oscura con colonias de moho incipiente.'
+        whatIsHappening: {
+          summary: 'Saturación hídrica progresiva en el sustrato por filtración activa exterior o de losa.',
+          explanation: 'Existe ingreso de agua no contenida proveniente de fachada, cubierta superior o una bajante pluvial con fisuras. Al penetrar la placa de concreto o mampostería, el agua disuelve sales minerales y las empuja hacia el interior (eflorescencia salina), desprendiendo la capa de estuco y soplada la pintura. Con el clima frío y la condensación, proliferan colonias de moho negro y hongos microscópicos que degradan el ambiente.',
+          symptoms: [
+            'Mancha oscura y amarillenta en cielo raso o muro',
+            'Ampollamiento y pintura descascarada en láminas',
+            'Colonias circulares oscuras de moho activo',
+            'Olor persistente a humedad en la estancia'
+          ],
+          risks: 'Riesgo severo para las vías respiratorias (rinitis, asma, alergias) por inhalación constante de esporas fúngicas. Riesgo de desprendimiento de fragmentos de pañete sobre la cama o pertenencias, y peligro de cortocircuito si alcanza ductos eléctricos.'
+        },
+        howToFix: {
+          definitiveSteps: [
+            'Paso 1 (Detener la fuente): El propietario debe intervenir de inmediato la cubierta superior, terraza o fachada exterior aplicando impermeabilizante elastomérico fibrado o reparando la bajante rota. Pintar sin frenar la fuga no soluciona el problema.',
+            'Paso 2 (Saneamiento): Con una espátula de acero, raspar y retirar toda la pintura ampollada, el estuco descompuesto y las sales hasta encontrar superficie dura y seca.',
+            'Paso 3 (Desinfección fúngica): Aplicar una solución desinfectante de hipoclorito de sodio diluido al 10% o fungicida de mampostería sobre el muro para exterminar las raíces del hongo, dejando ventilar por 24 a 48 horas.',
+            'Paso 4 (Restauración y acabado): Aplicar un sellador fijador antialcalino, rellenar y nivelar con estuco plástico impermeable (apto para exteriores/humedad) y finalizar con dos manos de pintura vinílica lavable tipo 1 con bactericida antihongos.'
+          ],
+          studentImmediateAction: 'Ventila la habitación abriendo ventanas en horas del día. Aleja tu cama, ropa y libros al menos 1 metro de la pared húmeda. NO raspes la pared en seco para no esparcir esporas tóxicas en el aire. Si tienes un deshumidificador o tarro absorbe-humedad, colócalo en el suelo cerca al área.',
+          whoPays: 'ARRENDADOR (Propietario) — Conforme a los Artículos 19 y 20 de la Ley 820 de 2003 y Art. 1985 del Código Civil, es una reparación necesaria no locativa a cargo exclusivo del propietario, al ser un daño estructural o por filtración ajeno al uso ordinario del estudiante.',
+          requiredTrade: 'Maestro de obra especialista en impermeabilizaciones y pintor.',
+          estimatedMaterials: 'Impermeabilizante acrílico (Sikafill / Corona), sellador hidrófugo, estuco plástico impermeable, fungicida y pintura vinilo lavable antihongos.'
+        },
+        legalBasis: 'Ley 820 de 2003 Art. 19: Obligación del arrendador de realizar reparaciones necesarias para mantener el inmueble en estado habitable.',
+        formalDescription: 'Se constata área de humedad activa con eflorescencia salina, desprendimiento de película de pintura y presencia de colonias fúngicas activas de ~30 cm de diámetro. Requiere impermeabilización de la fuente exterior y saneamiento de acabados.'
       },
       'grietas': {
         typology: 'grietas',
         typologyLabel: 'Grieta / Fisura',
-        confidence: 91,
-        title: `Fisura diagonal por asentamiento o dilatación térmica en ${room}`,
+        confidence: 93,
+        title: `Fisura por dilatación térmica o esfuerzo de asentamiento en ${room}`,
         severity: 'Media',
-        severityReason: 'Discontinuidad en revoque que puede comprometer la estanqueidad y avanzar si hay vibraciones o sismos menores.',
-        probableCause: 'Tensión estructural por asentamiento diferencial de la mampostería o choque térmico en muro perimetral.',
-        legalBasis: 'Ley 820 de 2003 Art. 19: Defecto de vicio oculto o estructural ajeno a la tenencia del inquilino.',
-        formalDescription: 'Fisura rectilínea de longitud aproximada 40 cm y abertura visible de ~1.5 mm, extendiéndose sobre muro de mampostería sin daño aparente en elementos portantes principales.'
+        whatIsHappening: {
+          summary: 'Fractura lineal en capa de mampostería o pañete por tensiones mecánicas o térmicas.',
+          explanation: 'Los materiales de la estructura sufren dilataciones por cambios térmicos bruscos o micro-asentamientos de la cimentación del edificio. Si el revoque carece de junta de dilatación o malla elástica de fibra, la tensión supera la resistencia del yeso y se abre una fisura. Si la grieta es superficial (menor a 1.5 mm), afecta la estética y estanqueidad; si supera los 2 mm o avanza en diagonal entre marcos, indica un asentamiento que debe ser inspeccionado.',
+          symptoms: [
+            'Hendidura lineal continua de 1 a 2 mm de grosor',
+            'Desprendimiento de polvo de yeso a lo largo del trazo',
+            'Dirección rectilínea o diagonal en pañete'
+          ],
+          risks: 'Permite el paso de corrientes de aire frío y humedad exterior hacia el interior del apartamento. Si no se trata con masilla elástica, la fisura volverá a abrirse repetidamente y puede fracturar enchapes o trabar marcos de puertas.'
+        },
+        howToFix: {
+          definitiveSteps: [
+            'Paso 1 (Apertura en V): Con una espátula o cincel fino, abrir la fisura en forma de "V" a lo largo de toda su extensión para ensanchar el canal y eliminar bordes débiles.',
+            'Paso 2 (Limpieza e imprimación): Retirar el polvo residual con brocha seca e imprimar la ranura con un puente de adherencia acrílico o sellador penetrante.',
+            'Paso 3 (Puente elástico con malla): Rellenar la hendidura con masilla acrílica elastomérica flexible (tipo Sikaflex o masilla para fisuras) y colocar una cinta de malla de fibra de vidrio para que absorba futuras vibraciones o movimientos térmicos sin romperse.',
+            'Paso 4 (Nivelación y pintura): Cubrir la malla con estuco plástico, dejar secar 24 horas, lijar con lija grano 180 hasta emparejar con el plomo del muro y aplicar pintura vinilo de acabado.'
+          ],
+          studentImmediateAction: 'No intentes tapar la grieta con silicona común, cinta o pasta dental (empeora el daño al secarse). No perfores ni cuelgues cuadros o repisas pesadas sobre la línea de la grieta. Verifica periódicamente si la puerta o ventana cercana se atora al abrir.',
+          whoPays: 'ARRENDADOR (Propietario) — Corresponde a un defecto o asentamiento de la estructura del inmueble. El estudiante inquilino no es responsable por movimientos de materiales ni fisuras de fraguado.',
+          requiredTrade: 'Estucador profesional o maestro de obra.',
+          estimatedMaterials: 'Sellador elastomérico poliuretano o masilla para fisuras, cinta de malla de fibra de vidrio, espátula de 3", estuco plástico y lija fina.'
+        },
+        legalBasis: 'Ley 820 de 2003 Art. 19: Garantía de estabilidad y estado de servir del inmueble arrendado.',
+        formalDescription: 'Fisura rectilínea de longitud aproximada 40 cm y espesor de ~1.5 mm sobre pañete. Requiere apertura en V, colocación de cinta de fibra de vidrio elástica y resane técnico.'
       },
       'plomeria': {
         typology: 'plomeria',
         typologyLabel: 'Plomería / Fuga',
-        confidence: 96,
-        title: `Fuga intermitente en acometida/sifón hidráulico en ${room}`,
+        confidence: 97,
+        title: `Fuga activa en sifón o acople hidráulico con derrame en ${room}`,
         severity: 'Alta',
-        severityReason: 'Goteo continuo con riesgo de daño por hinchamiento en carpintería de madera aglomerada y malos olores.',
-        probableCause: 'Falla en sello de empaque de caucho o fatiga en acople roscado de PVC por desgaste natural del servicio.',
-        legalBasis: 'Ley 820 de 2003 Art. 20: Reparación indispensable para el uso y goce del inmueble.',
-        formalDescription: 'Goteo constante con acumulación de agua residual en base de mueble. Evidencia deterioro por humedad en panel aglomerado inferior.'
+        whatIsHappening: {
+          summary: 'Escape de agua residual por desgaste de empaque o desalineación de rosca en tubería de desagüe.',
+          explanation: 'El empaque cónico de caucho o la rosca plástica de polipropileno del sifón ha perdido estanqueidad debido a envejecimiento, vibración o dilatación por agua caliente. Cada vez que se usa el grifo, el agua servida escurre por la junta y se acumula en el fondo del mueble. La madera aglomerada (MDF/MDP) absorbe el líquido, sufre hinchamiento irreversible y desintegra los aglomerantes.',
+          symptoms: [
+            'Goteo continuo o intermitente bajo el lavamanos o lavaplatos',
+            'Acumulación de agua en charco en la base del mueble',
+            'Madera aglomerada hinchada, agrietada o abombada',
+            'Olor a aguas residuales en el gabinete'
+          ],
+          risks: 'Destrucción irreversible del mueble de madera, proliferación de bacterias y hongos, corrosión de bisagras metálicas y posible filtración hacia la losa o apartamento del piso inferior.'
+        },
+        howToFix: {
+          definitiveSteps: [
+            'Paso 1 (Cierre de suministro): Cerrar las válvulas de escuadra (llaves de paso bajo el mueble) o la llave general del apartamento.',
+            'Paso 2 (Desarme y limpieza): Colocar un recipiente hondo bajo el sifón y aflojar las tuercas de ajuste manualmente. Retirar el sifón en "P" o botella, vaciar sedimentos y limpiar roscas de grasa y residuos.',
+            'Paso 3 (Sustitución de sellos): Reemplazar el empaque cónico de caucho por uno nuevo de neopreno. Limpiar las roscas macho y aplicar 4 a 5 vueltas de cinta teflón de alta densidad en el sentido de apriete horario.',
+            'Paso 4 (Reinstalación y prueba): Enroscar las tuercas con la mano con firmeza (sin sobreapretar con llaves metálicas para no quebrar el plástico). Abrir el grifo al máximo caudal por 2 minutos pasando papel absorbente seco por las juntas para certificar cero gotas.'
+          ],
+          studentImmediateAction: 'Coloca un balde o bandeja plástica debajo del tubo inmediatamente. Seca con trapo toda la madera húmeda para evitar que se siga deformando. Si la fuga no para al cerrar el grifo (fuga en tubo de agua limpia), cierra la llave de paso de la pared de inmediato.',
+          whoPays: 'ARRENDADOR si la tubería o sifón falló por envejecimiento natural o fatiga de materiales. Si el desajuste se causó por golpes o manipulación forzada del inquilino, corresponde al ARRENDATARIO (reparación locativa).',
+          requiredTrade: 'Plomero / Fontanero certificado.',
+          estimatedMaterials: 'Empaques cónicos de caucho de 1-1/2", sifón de polipropileno nuevo si el actual está fisurado, cinta teflón industrial.'
+        },
+        legalBasis: 'Ley 820 de 2003 Art. 20: Reparaciones indispensables para el uso y goce normal del inmueble.',
+        formalDescription: 'Goteo activo en sifón de desagüe que ocasiona humedecimiento de base de madera aglomerada. Requiere cambio de empaque cónico, sellado con teflón y prueba de estanqueidad.'
       },
       'electrico': {
         typology: 'electrico',
         typologyLabel: 'Daño Eléctrico',
-        confidence: 93,
-        title: `Anomalía en terminal o toma eléctrica con riesgo de corto en ${room}`,
+        confidence: 95,
+        title: `Punto eléctrico averiado con recalentamiento o riesgo de cortocircuito en ${room}`,
         severity: 'Crítica',
-        severityReason: 'Riesgo inminente de descarga eléctrica, chispeo o recalentamiento de conductores.',
-        probableCause: 'Sulfatación de contactos por humedad circundante o sobrecarga histórica previa.',
-        legalBasis: 'Reglamento RETIE y Ley 820/2003 Art. 19: Obligación de entregar y mantener servicios en condiciones de seguridad óptima.',
-        formalDescription: 'Punto eléctrico presenta placa floja, hollín o humedad en proximidad inmediata, requiriendo aislamiento preventivo urgente.'
+        whatIsHappening: {
+          summary: 'Falso contacto o sobrecalentamiento en bornes de conexión con riesgo de arco eléctrico.',
+          explanation: 'El tornillo que sujeta el cable conductor dentro de la toma se ha aflojado o los contactos internos de latón perdieron elasticidad. Cuando un enchufe se conecta a un borne flojo, se produce una resistencia eléctrica elevada que disipa calor extremo (efecto Joule). Esto funde el plástico de la placa y quema el aislamiento del cable. Si además hay humedad cerca en la pared, el agua facilita una descarga a tierra o cortocircuito severo.',
+          symptoms: [
+            'Chispas o sonido de zumbido al conectar clavijas',
+            'Placa plástica tibia o caliente al tacto',
+            'Manchas negras de hollín en orificios de la toma',
+            'Enchufe flojo que se cae por sí solo'
+          ],
+          risks: 'RIESGO CRÍTICO DE INCENDIO por inflamación de materiales cercanos y peligro de electrocución para los estudiantes al manipular electrodomésticos con humedad ambiental.'
+        },
+        howToFix: {
+          definitiveSteps: [
+            'Paso 1 (Desenergización obligatoria): ¡SEGURIDAD VITAL! Bajar el interruptor termomagnético (breaker / taco) correspondiente en el cuadro de control y verificar con un detector de tensión o multímetro que no haya corriente.',
+            'Paso 2 (Desmonte técnico): Retirar los tornillos de la placa decorativa y del chasis metálico para extraer la toma de la caja empotrada 2x4.',
+            'Paso 3 (Saneo de conductores): Cortar los tramos de cable de cobre quemados, chamuscados o sulfatados; pelar 1 cm de cobre limpio y recto.',
+            'Paso 4 (Instalación de toma nueva RETIE): Conectar una nueva toma doble con polo a tierra certificada RETIE (fase al borne dorado, neutro al plateado y tierra al verde). Ajustar tornillos firmemente, fijar en la caja y reconectar el breaker.'
+          ],
+          studentImmediateAction: '¡NO ENCHUFES NINGÚN APARATO! Si notas olor a plástico quemado o humo, baja el breaker en la caja de tacos de inmediato. No toques la toma con las manos mojadas ni descalzo. Señaliza con una cinta para que tus compañeros no la usen.',
+          whoPays: 'ARRENDADOR (Propietario) — Las instalaciones eléctricas empotradas y sus mecanismos de seguridad son parte estructural de la vivienda y responsabilidad legal del arrendador bajo el reglamento RETIE y la Ley 820 de 2003.',
+          requiredTrade: 'Electricista certificado con matrícula profesional (CONTE).',
+          estimatedMaterials: 'Tomacorriente doble con polo a tierra certificado RETIE (Leviton / Legrand / Veto), cinta aislante 3M Super 33, tornillos de sujeción.'
+        },
+        legalBasis: 'Ley 820 de 2003 Art. 19 y Reglamento RETIE: Obligación de entregar y mantener servicios en condiciones de seguridad óptima.',
+        formalDescription: 'Tomacorriente presenta signos de recalentamiento, sulfatación en bornes y holgura en clavijas. Requiere desenergización, reemplazo por mecanismo certificado RETIE con polo a tierra y verificación de carga.'
       },
       'acabados': {
         typology: 'acabados',
-        typologyLabel: 'Cerrajería / Puerta',
-        confidence: 89,
+        typologyLabel: 'Cerrajería & Puertas',
+        confidence: 92,
         title: `Desajuste mecánico y fricción en cerradura/marco de ${room}`,
         severity: 'Media',
-        severityReason: 'Dificultad en aseguramiento que compromete la seguridad del inmueble y los bienes del estudiante.',
-        probableCause: 'Descuadre por dilatación o desgaste en pernos de anclaje de la chapa por uso normal prolongado.',
-        legalBasis: 'Ley 820 de 2003 Art. 19: Garantía de seguridad mínima de la vivienda arrendada.',
-        formalDescription: 'Pestillo roza contra la pletina receptora metálica requiriendo maniobra de fuerza para operar el cerrojo de seguridad.'
+        whatIsHappening: {
+          summary: 'Descuadre de la hoja de la puerta por gravedad o humedad que desalinea el pestillo con el marco.',
+          explanation: 'Debido al peso de la puerta, los tornillos de la bisagra superior han cedido en la madera o el marco se ensanchó por cambios de humedad relativa. Al descender la hoja un par de milímetros, el pestillo y el cerrojo chocan contra la placa metálica (cerradero) del marco en lugar de deslizarse dentro del orificio. Esto obliga al estudiante a empujar con el hombro o forzar la llave con violencia para lograr el cierre.',
+          symptoms: [
+            'Cerradura suave con la puerta abierta, pero muy dura o trabada con la puerta cerrada',
+            'Roce metálico evidente en la chapa o pintura rayada en el marco',
+            'Llave que se siente atrancada y requiere fuerza para girar'
+          ],
+          risks: 'Riesgo inminente de fractura de la llave dentro del cilindro, dejando al estudiante encerrado o sin acceso al apartamento (con alto costo de cerrajero de emergencia). Menor seguridad ante robos o intrusión.'
+        },
+        howToFix: {
+          definitiveSteps: [
+            'Paso 1 (Ajuste de bisagras): Abrir la puerta y revisar los tornillos de la bisagra superior. Si giran en falso (madera rodada), insertar tarugos de madera con pegante para madera y atornillar tornillos más largos (1-1/2 a 2 pulgadas) para recuperar la tracción y levantar la hoja.',
+            'Paso 2 (Rebaje del recibidor): Marcar con marcador o tiza el pestillo para ubicar dónde roza contra la pletina metálica del marco; con una lima plana para metal, rebajar 1 a 2 mm el orificio de encaje hasta que el cerrojo entre libremente sin chocar.',
+            'Paso 3 (Alineación de canto): Si la puerta se infló por humedad en la parte inferior o lateral, retirar la puerta y cepillar suavemente el canto con cepillo de carpintero, sellando con barniz para que no absorba más agua.',
+            'Paso 4 (Lubricación con grafito): Aplicar grafito en polvo seco dentro del orificio de la cerradura y en el pestillo. NO aplicar aceite de cocina ni WD-40 en exceso porque atrapan polvo y empastan el mecanismo a futuro.'
+          ],
+          studentImmediateAction: 'Al meter la llave para cerrar o abrir, levanta suavemente la manija hacia arriba o jala la puerta hacia ti para nivelar el cerrojo y facilitar el giro de la llave sin forzarla. No ejerzas fuerza excesiva con la llave para evitar que se parta dentro.',
+          whoPays: 'ARRENDADOR si la cerradura o el marco sufrieron desajuste por el paso del tiempo o vicios de la carpintería. ARRENDATARIO si la cerradura se averió por forzamiento o uso de llaves duplicadas defectuosas.',
+          requiredTrade: 'Cerrajero profesional o carpintero de acabados.',
+          estimatedMaterials: 'Grafito en polvo para cerrajería, tornillos para madera reforzados de 1-1/2", lima plana para metal, tarugos de madera.'
+        },
+        legalBasis: 'Ley 820 de 2003 Art. 19: Deber del arrendador de garantizar la seguridad física y cerramiento de la vivienda arrendada.',
+        formalDescription: 'Puerta presenta desajuste en bisagra superior y fricción mecánica del pestillo contra el recibidor del marco. Requiere ajuste de bisagras con tarugos reforzados, rebaje de cerradero y lubricación con grafito.'
       }
     };
 
@@ -1176,10 +1299,12 @@ function initNewDamageForm() {
       const compressed = await compressImageFileOrDataUrl(dataOrFile, 1200, 0.76);
       newDamageImageData = compressed;
       if (previewImg) previewImg.src = compressed;
-      showToast(`Foto lista y optimizada (${sourceLabel})`);
+      showToast(`Foto adjuntada (${sourceLabel})`);
 
-      const aiPanel = document.getElementById('ai-analysis-result-panel');
-      if (aiPanel) aiPanel.classList.add('hidden');
+      // Disparar automáticamente el diagnóstico con IA para saber qué pasa y cómo arreglarlo
+      setTimeout(() => {
+        runAiDamageAnalysis({ autoTriggered: true });
+      }, 150);
     } catch (e) {
       console.error(e);
       showToast('Error procesando la imagen');
@@ -1549,8 +1674,9 @@ function initLiveCamera() {
         const preview = document.getElementById('main-preview-img');
         if (preview) preview.src = dataUrl;
         newDamageImageData = dataUrl;
-        const aiPanel = document.getElementById('ai-analysis-result-panel');
-        if (aiPanel) aiPanel.classList.add('hidden');
+        setTimeout(() => {
+          runAiDamageAnalysis({ autoTriggered: true });
+        }, 150);
       } else if (cameraTargetMode === 'followup') {
         const preview = document.getElementById('followup-preview-img');
         if (preview) preview.src = dataUrl;
@@ -1918,11 +2044,13 @@ let lastAiDamageAnalysis = null;
 let currentLegalTone = 'formal';
 let currentDamageIdForStatus = null;
 
-async function runAiDamageAnalysis() {
+async function runAiDamageAnalysis(options = {}) {
   const previewImg = document.getElementById('main-preview-img');
   const imgUrl = newDamageImageData || previewImg?.src;
   if (!imgUrl) {
-    showToast('Por favor carga o toma una fotografía primero.');
+    if (!options.autoTriggered) {
+      showToast('Por favor carga o toma una fotografía primero.');
+    }
     return;
   }
 
@@ -1934,9 +2062,9 @@ async function runAiDamageAnalysis() {
   const btnText = document.getElementById('ai-btn-text');
   const panel = document.getElementById('ai-analysis-result-panel');
   if (btn) btn.disabled = true;
-  if (btnText) btnText.innerHTML = '<span class="inline-flex items-center gap-1.5"><span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Analizando con IA...</span>';
+  if (btnText) btnText.innerHTML = '<span class="inline-flex items-center gap-1.5"><span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Diagnosticando qué pasa y cómo arreglarlo con IA...</span>';
 
-  showToast('Iniciando peritaje y análisis con IA...');
+  showToast('Analizando fotografía con IA: Detectando qué pasa y cómo arreglarlo...');
 
   try {
     const analysis = await CasaAlertaAI.analyzeDamageImage(imgUrl, selectedTypology, room);
@@ -1944,63 +2072,235 @@ async function runAiDamageAnalysis() {
 
     if (panel) {
       panel.classList.remove('hidden');
-      panel.innerHTML = `
-        <div class="space-y-3">
-          <div class="flex items-center justify-between border-b border-indigo-100 pb-2">
-            <div class="flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-indigo-600 text-base">psychology</span>
-              <span class="font-extrabold text-xs text-indigo-950">${analysis.source}</span>
-            </div>
-            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              ${analysis.confidence}% Confianza
+
+      const what = analysis.whatIsHappening || {
+        summary: analysis.title || 'Anomalía detectada en el inmueble',
+        explanation: analysis.probableCause || 'Deterioro visible en la superficie del inmueble.',
+        symptoms: ['Mancha o fisura en superficie', 'Desgaste de material'],
+        risks: analysis.severityReason || 'Deterioro progresivo si no se atiende oportunamente.'
+      };
+
+      const fix = analysis.howToFix || {
+        definitiveSteps: [
+          'Paso 1: Identificar y suspender la causa física del daño.',
+          'Paso 2: Sanear, raspar y limpiar la superficie afectada.',
+          'Paso 3: Aplicar materiales selladores o de reposición.',
+          'Paso 4: Acabado estético y pintura de protección.'
+        ],
+        studentImmediateAction: 'Mantén despejada la zona y no apliques químicos corrosivos sin supervisión.',
+        whoPays: 'ARRENDADOR (Ley 820 de 2003)',
+        requiredTrade: 'Técnico especialista o maestro de obra',
+        estimatedMaterials: 'Materiales selladores y resanes adecuados'
+      };
+
+      const symptomsHtml = Array.isArray(what.symptoms)
+        ? what.symptoms.map(s => `
+            <span class="inline-flex items-center gap-1 text-[11px] bg-white px-2.5 py-1 rounded-lg border border-amber-200 text-amber-950 font-bold shadow-2xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              ${s}
             </span>
-          </div>
+          `).join('')
+        : '';
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <div class="bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-100">
-              <span class="text-[10px] font-bold text-slate-500 uppercase block">Tipología Detectada</span>
-              <span class="font-extrabold text-indigo-900">${analysis.typologyLabel}</span>
+      const stepsHtml = Array.isArray(fix.definitiveSteps)
+        ? fix.definitiveSteps.map((step, idx) => `
+            <div class="bg-white p-2.5 rounded-xl border border-indigo-100 flex items-start gap-2.5 text-xs text-slate-800 font-medium shadow-2xs">
+              <span class="w-5 h-5 rounded-full bg-indigo-600 text-white font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
+                ${idx + 1}
+              </span>
+              <span class="leading-relaxed">${step}</span>
             </div>
-            <div class="bg-amber-50/50 p-2.5 rounded-xl border border-amber-100">
-              <span class="text-[10px] font-bold text-slate-500 uppercase block">Severidad Sugerida</span>
-              <span class="font-extrabold text-amber-900">${analysis.severity}</span>
+          `).join('')
+        : '';
+
+      panel.innerHTML = `
+        <div class="space-y-4">
+          <!-- Cabecera de Identificación Pericial -->
+          <div class="flex items-start justify-between border-b border-indigo-100 pb-3 gap-2">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-700 text-white flex items-center justify-center font-black shadow-sm flex-shrink-0">
+                <span class="material-symbols-outlined text-lg">psychology</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xs font-black text-slate-900">${analysis.title}</span>
+                  <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wider">
+                    ${analysis.typologyLabel}
+                  </span>
+                </div>
+                <p class="text-[10px] text-slate-500 font-medium mt-0.5">${analysis.source} • Sogamoso (Boyacá)</p>
+              </div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                <span class="material-symbols-outlined text-xs text-emerald-600">verified</span>
+                <span>${analysis.confidence}% Certeza</span>
+              </span>
+              <span class="text-[10px] block font-bold text-slate-500 mt-1">Urgencia: <strong class="text-amber-700">${analysis.severity}</strong></span>
             </div>
           </div>
 
-          <div class="space-y-1 text-xs">
-            <span class="text-[10px] font-bold text-slate-500 uppercase block">Causa Probable Pericial</span>
-            <p class="text-slate-700 font-medium leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-              ${analysis.probableCause}
-            </p>
+          <!-- BLOQUE 1: ¿QUÉ ES LO QUE ESTÁ PASANDO? -->
+          <div class="bg-gradient-to-br from-amber-50/80 via-orange-50/40 to-amber-50/30 rounded-2xl p-4 border border-amber-200/90 shadow-sm space-y-3">
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                <span class="material-symbols-outlined text-base">search_check</span>
+              </span>
+              <div>
+                <h5 class="text-xs font-black text-amber-950 uppercase tracking-wide">1. ¿Qué es lo que está pasando?</h5>
+                <p class="text-[11px] text-amber-800 font-bold leading-tight">${what.summary}</p>
+              </div>
+            </div>
+
+            <!-- Explicación accesible -->
+            <div class="bg-white/95 p-3.5 rounded-xl border border-amber-200/80 space-y-1.5 shadow-2xs">
+              <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Diagnóstico Explicativo:</span>
+              <p class="text-xs text-slate-800 leading-relaxed font-medium">
+                ${what.explanation}
+              </p>
+            </div>
+
+            <!-- Síntomas visuales detectados -->
+            <div class="space-y-1.5">
+              <span class="text-[10px] font-extrabold text-amber-950 uppercase tracking-wider block">Signos detectados en la fotografía:</span>
+              <div class="flex flex-wrap gap-1.5">
+                ${symptomsHtml}
+              </div>
+            </div>
+
+            <!-- Alerta de riesgos -->
+            <div class="bg-rose-50/90 border border-rose-200 p-3 rounded-xl text-rose-950 text-xs flex items-start gap-2 shadow-2xs">
+              <span class="material-symbols-outlined text-rose-600 text-base flex-shrink-0 mt-0.5">health_and_safety</span>
+              <div class="text-[11px] leading-relaxed">
+                <strong class="font-black text-rose-950">Riesgos si no se interviene:</strong> ${what.risks}
+              </div>
+            </div>
           </div>
 
-          <div class="space-y-1 text-xs">
-            <span class="text-[10px] font-bold text-slate-500 uppercase block">Redacción Probatoria Formal</span>
-            <p class="text-slate-700 font-medium italic leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-              "${analysis.formalDescription}"
-            </p>
+          <!-- BLOQUE 2: ¿DE QUÉ FORMA SE PUEDE ARREGLAR? -->
+          <div class="bg-gradient-to-br from-indigo-50/85 via-blue-50/40 to-purple-50/30 rounded-2xl p-4 border border-indigo-200/90 shadow-sm space-y-3">
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                <span class="material-symbols-outlined text-base">build</span>
+              </span>
+              <div>
+                <h5 class="text-xs font-black text-indigo-950 uppercase tracking-wide">2. ¿De qué forma se puede arreglar?</h5>
+                <p class="text-[11px] text-indigo-700 font-bold leading-tight">Guía de solución técnica y medidas preventivas</p>
+              </div>
+            </div>
+
+            <!-- Solución definitiva paso a paso -->
+            <div class="space-y-2">
+              <span class="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider block">Solución Definitiva (Procedimiento Técnico):</span>
+              <div class="space-y-1.5">
+                ${stepsHtml}
+              </div>
+            </div>
+
+            <!-- Medida provisional para el estudiante -->
+            <div class="bg-emerald-50/90 border border-emerald-200 p-3.5 rounded-xl space-y-1 shadow-2xs">
+              <div class="flex items-center gap-1.5 text-emerald-950 font-black text-xs">
+                <span class="material-symbols-outlined text-emerald-600 text-base">security</span>
+                <span>¿Qué puedes hacer tú ahora mismo? (Medida Provisional)</span>
+              </div>
+              <p class="text-[11px] text-emerald-950 leading-relaxed font-medium">
+                ${fix.studentImmediateAction}
+              </p>
+            </div>
+
+            <!-- ¿A quién le corresponde pagarlo? -->
+            <div class="bg-white p-3.5 rounded-xl border-l-4 border-indigo-600 border border-slate-200 shadow-2xs space-y-1">
+              <div class="flex items-center gap-1 text-[10px] font-black text-indigo-700 uppercase tracking-wider">
+                <span class="material-symbols-outlined text-xs">gavel</span>
+                <span>¿A quién le corresponde responder y pagar el arreglo?</span>
+              </div>
+              <p class="text-xs font-black text-slate-900 leading-snug">
+                ${fix.whoPays}
+              </p>
+              <p class="text-[10px] text-slate-500 font-medium mt-0.5">
+                ${analysis.legalBasis}
+              </p>
+            </div>
+
+            <!-- Oficio y Materiales -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+                <span class="text-slate-500 font-bold block text-[10px] uppercase">Oficio recomendado:</span>
+                <span class="font-extrabold text-slate-900">${fix.requiredTrade}</span>
+              </div>
+              <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+                <span class="text-slate-500 font-bold block text-[10px] uppercase">Materiales sugeridos:</span>
+                <span class="font-extrabold text-slate-900 leading-tight block">${fix.estimatedMaterials}</span>
+              </div>
+            </div>
           </div>
 
-          <div class="space-y-1 text-[11px] text-indigo-900 bg-indigo-50/70 p-2.5 rounded-xl border border-indigo-200/80">
-            <span class="font-bold flex items-center gap-1"><span class="material-symbols-outlined text-xs text-indigo-600">gavel</span> Fundamento Legal:</span>
-            <span>${analysis.legalBasis || 'Ley 820 de 2003 (Reparaciones necesarias)'}</span>
+          <!-- BOTONES DE ACCIÓN RÁPIDA -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <button type="button" onclick="applyAiAnalysisToForm()" class="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white py-2.5 px-3.5 rounded-xl text-xs font-black shadow-sm active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-base">auto_fix_high</span>
+              <span>🪄 Aplicar Datos al Formulario</span>
+            </button>
+            <button type="button" onclick="copyAiDiagnosisToClipboard()" class="inline-flex items-center justify-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200/80 py-2.5 px-3.5 rounded-xl text-xs font-bold active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-base text-indigo-600">content_copy</span>
+              <span>📋 Copiar Guía de Arreglo</span>
+            </button>
           </div>
-
-          <button type="button" onclick="applyAiAnalysisToForm()" class="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white py-2.5 px-4 rounded-xl text-xs font-extrabold shadow-sm active:scale-95 transition-all">
-            <span class="material-symbols-outlined text-sm">auto_fix_high</span>
-            <span>🪄 Aplicar Datos Sugeridos al Formulario</span>
-          </button>
         </div>
       `;
     }
-    showToast('¡Análisis completado con éxito!');
+    showToast('¡Diagnóstico y guía de arreglo listos!');
   } catch (err) {
     console.error(err);
     showToast('No se pudo completar el análisis.');
   } finally {
     if (btn) btn.disabled = false;
-    if (btnText) btnText.innerHTML = '<span>✨ Analizar Foto con IA</span>';
+    if (btnText) btnText.innerHTML = '<span>✨ Analizar Foto: ¿Qué pasa y cómo arreglarlo?</span>';
   }
+}
+
+function copyAiDiagnosisToClipboard() {
+  if (!lastAiDamageAnalysis) {
+    showToast('No hay diagnóstico generado aún');
+    return;
+  }
+  const a = lastAiDamageAnalysis;
+  const what = a.whatIsHappening || {};
+  const fix = a.howToFix || {};
+
+  const stepsText = Array.isArray(fix.definitiveSteps)
+    ? fix.definitiveSteps.map((s, i) => `${i + 1}. ${s}`).join('\n')
+    : 'Pasos técnicos de reparación no especificados.';
+
+  const textToCopy = `📋 REPORTE DE DAÑO & GUÍA DE REPARACIÓN (CasaAlerta IA)
+Incidencia: ${a.title || 'Daño Locativo'}
+Tipología: ${a.typologyLabel || 'General'} | Severidad: ${a.severity || 'Media'}
+
+1. ¿QUÉ ESTÁ PASANDO?
+• Diagnóstico: ${what.summary || ''}
+• Explicación: ${what.explanation || ''}
+• Riesgo evaluado: ${what.risks || ''}
+
+2. ¿DE QUÉ FORMA SE PUEDE ARREGLAR?
+Solución definitiva paso a paso:
+${stepsText}
+
+• Medida provisional inmediata para el inquilino:
+${fix.studentImmediateAction || ''}
+
+• Responsabilidad Legal:
+${fix.whoPays || 'Arrendador (Ley 820 de 2003)'}
+
+• Oficio recomendado: ${fix.requiredTrade || 'Técnico de obra'}
+• Materiales sugeridos: ${fix.estimatedMaterials || ''}
+
+Fundamento: ${a.legalBasis || 'Ley 820 de 2003 de Colombia'}`;
+
+  navigator.clipboard.writeText(textToCopy).then(() => {
+    showToast('¡Diagnóstico y guía de arreglo copiados al portapapeles!');
+  }).catch(() => {
+    showToast('Texto listo para compartir');
+  });
 }
 
 function applyAiAnalysisToForm() {
@@ -2303,6 +2603,7 @@ window.triggerImportJson = triggerImportJson;
 window.handleJsonFileImport = handleJsonFileImport;
 window.runAiDamageAnalysis = runAiDamageAnalysis;
 window.applyAiAnalysisToForm = applyAiAnalysisToForm;
+window.copyAiDiagnosisToClipboard = copyAiDiagnosisToClipboard;
 window.runAiTimelineAnalysis = runAiTimelineAnalysis;
 window.generateAiLegalMessage = generateAiLegalMessage;
 window.openStatusModal = openStatusModal;

@@ -213,6 +213,47 @@ class CasaAlertaStore {
     return newUser;
   }
 
+  updateUser(userId, updatedData) {
+    const user = this.data.users.find(u => u.id === userId);
+    if (!user) return null;
+
+    if (updatedData.name !== undefined && updatedData.name.trim()) {
+      user.name = updatedData.name.trim();
+      const nameParts = user.name.split(' ');
+      user.initials = nameParts.length >= 2 
+        ? (nameParts[0][0] + nameParts[1][0]).toUpperCase()
+        : (user.name.substring(0, 2)).toUpperCase();
+    }
+    if (updatedData.documentId !== undefined) user.documentId = updatedData.documentId.trim();
+    if (updatedData.university !== undefined) user.university = updatedData.university.trim();
+    if (updatedData.apartment !== undefined) user.apartment = updatedData.apartment.trim();
+    if (updatedData.address !== undefined) user.address = updatedData.address.trim();
+    if (updatedData.landlord !== undefined) user.landlord = updatedData.landlord.trim();
+    if (updatedData.landlordPhone !== undefined) user.landlordPhone = updatedData.landlordPhone.replace(/\D/g, '');
+    if (updatedData.term !== undefined) user.term = updatedData.term.trim();
+    if (updatedData.contractRef !== undefined) user.contractRef = updatedData.contractRef.trim();
+    if (updatedData.radicado !== undefined) user.radicado = updatedData.radicado.trim();
+
+    this.saveData();
+    return user;
+  }
+
+  deleteUser(userId) {
+    if (this.data.users.length <= 1) {
+      throw new Error("No es posible eliminar el único perfil de usuario existente.");
+    }
+    const idx = this.data.users.findIndex(u => u.id === userId);
+    if (idx === -1) return null;
+
+    const [deleted] = this.data.users.splice(idx, 1);
+    if (this.data.activeUserId === userId) {
+      this.data.activeUserId = this.data.users[0].id;
+      this.activeDamageId = this.data.users[0].damages[0]?.id || null;
+    }
+    this.saveData();
+    return deleted;
+  }
+
   getDamages() {
     const user = this.getActiveUser();
     return user ? user.damages : [];
@@ -244,6 +285,7 @@ class CasaAlertaStore {
       imputabilidad: newDamage.imputabilidad || 'Incidencia Reportada',
       severity: newDamage.severity || 'Media',
       status: 'Activo',
+      analysis: newDamage.analysis || null,
       updates: []
     };
 
@@ -790,6 +832,49 @@ Atentamente,
 ${user.name}
 C.C. ${user.documentId}
 ${user.apartment}`;
+  },
+
+  getOrGenerateDamageAnalysis(damage) {
+    if (!damage) return null;
+    if (damage.analysis && damage.analysis.whatIsHappening && damage.analysis.howToFix) {
+      return damage.analysis;
+    }
+    const generated = this.expertRuleDiagnosis(damage.initialImage, damage.typology, damage.room);
+    damage.analysis = generated;
+    return generated;
+  },
+
+  generateSingleDamageWhatsApp(damage, user) {
+    if (!damage || !user) return '';
+    const analysis = this.getOrGenerateDamageAnalysis(damage);
+    const what = analysis?.whatIsHappening || {};
+    const fix = analysis?.howToFix || {};
+
+    const stepsText = Array.isArray(fix.definitiveSteps)
+      ? fix.definitiveSteps.slice(0, 3).map((st, i) => `   ${st}`).join('\n')
+      : '   Inspección técnica y reparación idónea.';
+
+    return `*REPORTE TÉCNICO DE INCIDENCIA LOCATIVA — CASAALERTA*
+*Inmueble:* ${user.apartment} (${user.address})
+*Inquilino:* ${user.name} (${user.university})
+*Radicado:* ${user.radicado || 'UPTC-SOG-302'}
+*Fecha Certificada:* ${damage.initialDateFormatted || damage.initialDate}
+
+📌 *Daño:* [${damage.id}] ${damage.title}
+📍 *Ubicación:* ${damage.room}
+⚠️ *Nivel de Severidad:* ${damage.severity}
+
+🔍 *1. ¿QUÉ ESTÁ PASANDO?*
+${what.summary || damage.initialNote}
+${what.explanation ? `\n_Diagnóstico Físico:_ ${what.explanation.substring(0, 220)}...` : ''}
+
+🛠️ *2. ¿DE QUÉ FORMA SE DEBE ARREGLAR?*
+${stepsText}
+
+⚖️ *RESPONSABILIDAD:*
+${fix.whoPays || 'ARRENDADOR conforme a los Arts. 19 y 20 de la Ley 820 de 2003.'}
+
+Estimado(a) ${user.landlord}, remito este dictamen para coordinar amablemente una visita técnica y subsanar oportunamente la incidencia. ¡Agradezco su atención!`;
   }
 };
 
@@ -849,12 +934,15 @@ function initRouter() {
     'dashboard': document.getElementById('view-dashboard'),
     'nuevo-registro': document.getElementById('view-nuevo-registro'),
     'linea-de-tiempo': document.getElementById('view-linea-de-tiempo'),
-    'reportes-pdf': document.getElementById('view-reportes-pdf')
+    'reportes-pdf': document.getElementById('view-reportes-pdf'),
+    'detalle-danio': document.getElementById('view-detalle-danio')
   };
 
   const navLinks = document.querySelectorAll('[data-path]');
 
-  function navigateTo(path) {
+  function navigateTo(rawPath) {
+    const cleanPath = (rawPath || '').replace('#', '');
+    const [path, queryString] = cleanPath.split('?');
     const targetPath = views[path] ? path : 'dashboard';
 
     Object.keys(views).forEach(key => {
@@ -892,6 +980,11 @@ function initRouter() {
     if (targetPath === 'dashboard') renderDashboardCards();
     if (targetPath === 'linea-de-tiempo') renderTimelineView(window.appStore.activeDamageId);
     if (targetPath === 'reportes-pdf') renderPdfReport();
+    if (targetPath === 'detalle-danio') {
+      const urlParams = new URLSearchParams(queryString || '');
+      const reqId = urlParams.get('id') || window.appStore.activeDamageId;
+      renderDamageDetailView(reqId);
+    }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1196,7 +1289,7 @@ function renderDashboardCards(filterType = currentFilterType, filterZone = curre
     return `
       <div class="bg-white border border-slate-200/90 rounded-3xl overflow-hidden shadow-sm card-hover-effect flex flex-col justify-between group">
         <div>
-          <div class="relative w-full h-52 bg-slate-100 overflow-hidden">
+          <div class="relative w-full h-52 bg-slate-100 overflow-hidden cursor-pointer" onclick="openDamageDetail('${d.id}')" title="Clic para ver ficha técnica detallada">
             <img src="${d.initialImage}" alt="${d.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isArchived ? 'grayscale-[35%]' : ''}" />
             
             <div class="absolute top-3 left-3 bg-slate-900/85 backdrop-blur-md text-white px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
@@ -1238,13 +1331,18 @@ function renderDashboardCards(filterType = currentFilterType, filterZone = curre
               `}
             </div>
 
-            <h3 class="text-sm font-extrabold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1 mt-0.5">
+            <h3 class="text-sm font-extrabold text-slate-900 hover:text-indigo-600 transition-colors line-clamp-1 mt-0.5 cursor-pointer" onclick="openDamageDetail('${d.id}')" title="Clic para abrir ficha completa">
               ${d.title}
             </h3>
             
             <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed">
               ${d.initialNote}
             </p>
+
+            <button onclick="openDamageDetail('${d.id}')" class="mt-1.5 w-full inline-flex items-center justify-center gap-1.5 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 py-2 px-2.5 rounded-xl text-xs font-black transition-all border border-indigo-200/80 shadow-2xs group/btn">
+              <span class="material-symbols-outlined text-sm text-indigo-600 group-hover/btn:translate-x-0.5 transition-transform">assignment</span>
+              <span>Ficha Técnica: ¿Qué pasa y cómo arreglarlo?</span>
+            </button>
           </div>
         </div>
 
@@ -1412,7 +1510,8 @@ function initNewDamageForm() {
         description: descInput.value.trim(),
         image: newDamageImageData || 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80',
         severity: severitySelect?.value || 'Media',
-        imputabilidad: priorRadio ? priorRadio.value : 'Incidencia Reportada'
+        imputabilidad: priorRadio ? priorRadio.value : 'Incidencia Reportada',
+        analysis: lastAiDamageAnalysis || null
       });
 
       showToast(`¡Daño registrado exitosamente como ${newRecord.id}!`);
@@ -1420,7 +1519,8 @@ function initNewDamageForm() {
       if (titleInput) titleInput.value = '';
       if (descInput) descInput.value = '';
 
-      window.location.hash = 'dashboard';
+      // Redirigir directamente a la ficha técnica del daño con diagnóstico y solución
+      window.location.hash = `detalle-danio?id=${newRecord.id}`;
     });
   }
 }
@@ -1750,34 +1850,55 @@ function initUserManagement() {
   const modal = document.getElementById('modal-user-management');
   const closeBtn = document.getElementById('modal-user-close');
   const tabListBtn = document.getElementById('tab-user-list-btn');
+  const tabEditBtn = document.getElementById('tab-user-edit-btn');
   const tabNewBtn = document.getElementById('tab-user-new-btn');
   const panelList = document.getElementById('panel-user-list');
+  const panelEdit = document.getElementById('panel-user-edit');
   const panelNew = document.getElementById('panel-user-new');
   const formNewUser = document.getElementById('form-new-user');
+  const formEditUser = document.getElementById('form-edit-user');
 
   if (closeBtn) closeBtn.addEventListener('click', closeUserModal);
 
-  if (tabListBtn && tabNewBtn) {
-    tabListBtn.addEventListener('click', () => {
-      tabListBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
-      tabListBtn.classList.remove('bg-transparent', 'text-slate-600');
-      tabNewBtn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
-      tabNewBtn.classList.add('bg-transparent', 'text-slate-600');
-      panelList.classList.remove('hidden');
-      panelNew.classList.add('hidden');
-      renderUserProfilesList();
+  function activateUserTab(tabName) {
+    [tabListBtn, tabEditBtn, tabNewBtn].forEach(btn => {
+      if (btn) {
+        btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
+        btn.classList.add('bg-transparent', 'text-slate-600', 'font-bold');
+      }
     });
 
-    tabNewBtn.addEventListener('click', () => {
-      tabNewBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
-      tabNewBtn.classList.remove('bg-transparent', 'text-slate-600');
-      tabListBtn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
-      tabListBtn.classList.add('bg-transparent', 'text-slate-600');
-      panelNew.classList.remove('hidden');
-      panelList.classList.add('hidden');
-    });
+    if (panelList) panelList.classList.add('hidden');
+    if (panelEdit) panelEdit.classList.add('hidden');
+    if (panelNew) panelNew.classList.add('hidden');
+
+    if (tabName === 'list') {
+      if (tabListBtn) {
+        tabListBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
+        tabListBtn.classList.remove('bg-transparent', 'text-slate-600');
+      }
+      if (panelList) panelList.classList.remove('hidden');
+      renderUserProfilesList();
+    } else if (tabName === 'edit') {
+      if (tabEditBtn) {
+        tabEditBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
+        tabEditBtn.classList.remove('bg-transparent', 'text-slate-600');
+      }
+      if (panelEdit) panelEdit.classList.remove('hidden');
+    } else if (tabName === 'new') {
+      if (tabNewBtn) {
+        tabNewBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
+        tabNewBtn.classList.remove('bg-transparent', 'text-slate-600');
+      }
+      if (panelNew) panelNew.classList.remove('hidden');
+    }
   }
 
+  if (tabListBtn) tabListBtn.addEventListener('click', () => activateUserTab('list'));
+  if (tabEditBtn) tabEditBtn.addEventListener('click', () => openEditUserForm(window.appStore.getActiveUser()?.id));
+  if (tabNewBtn) tabNewBtn.addEventListener('click', () => activateUserTab('new'));
+
+  // Registrar Nuevo Usuario
   if (formNewUser) {
     formNewUser.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -1813,6 +1934,47 @@ function initUserManagement() {
       updateUserInterface();
     });
   }
+
+  // Editar Usuario Existente
+  if (formEditUser) {
+    formEditUser.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const editId = document.getElementById('edit-user-id')?.value;
+      const nameInput = document.getElementById('edit-user-name');
+      const docInput = document.getElementById('edit-user-doc');
+      const uniInput = document.getElementById('edit-user-uni');
+      const aptInput = document.getElementById('edit-user-apt');
+      const addrInput = document.getElementById('edit-user-addr');
+      const landlordInput = document.getElementById('edit-user-landlord');
+      const phoneInput = document.getElementById('edit-user-phone');
+      const termInput = document.getElementById('edit-user-term');
+      const radicadoInput = document.getElementById('edit-user-radicado');
+
+      if (!editId) return;
+
+      if (!nameInput.value.trim() || !aptInput.value.trim()) {
+        showToast('Nombre y Apartamento son obligatorios.');
+        return;
+      }
+
+      const updated = window.appStore.updateUser(editId, {
+        name: nameInput.value.trim(),
+        documentId: docInput.value.trim(),
+        university: uniInput.value.trim(),
+        apartment: aptInput.value.trim(),
+        address: addrInput.value.trim(),
+        landlord: landlordInput.value.trim(),
+        landlordPhone: phoneInput.value.trim(),
+        term: termInput.value.trim(),
+        radicado: radicadoInput.value.trim()
+      });
+
+      showToast(`¡Perfil actualizado con éxito: ${updated.name}!`);
+      closeUserModal();
+      updateUserInterface();
+    });
+  }
 }
 
 function openUserModal() {
@@ -1829,6 +1991,91 @@ function closeUserModal() {
   if (modal) {
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+  }
+}
+
+function openEditUserForm(userId) {
+  const users = window.appStore.getUsers();
+  const user = users.find(u => u.id === userId) || window.appStore.getActiveUser();
+  if (!user) return;
+
+  const modal = document.getElementById('modal-user-management');
+  const tabListBtn = document.getElementById('tab-user-list-btn');
+  const tabEditBtn = document.getElementById('tab-user-edit-btn');
+  const tabNewBtn = document.getElementById('tab-user-new-btn');
+  const panelList = document.getElementById('panel-user-list');
+  const panelEdit = document.getElementById('panel-user-edit');
+  const panelNew = document.getElementById('panel-user-new');
+
+  if (tabEditBtn && tabListBtn && tabNewBtn) {
+    tabEditBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
+    tabEditBtn.classList.remove('bg-transparent', 'text-slate-600');
+    tabListBtn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
+    tabListBtn.classList.add('bg-transparent', 'text-slate-600');
+    tabNewBtn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm', 'font-extrabold');
+    tabNewBtn.classList.add('bg-transparent', 'text-slate-600');
+  }
+
+  if (panelEdit && panelList && panelNew) {
+    panelEdit.classList.remove('hidden');
+    panelList.classList.add('hidden');
+    panelNew.classList.add('hidden');
+  }
+
+  const editId = document.getElementById('edit-user-id');
+  const badgeId = document.getElementById('edit-user-badge-id');
+  const badgeRad = document.getElementById('edit-user-badge-radicado');
+  const nameInput = document.getElementById('edit-user-name');
+  const docInput = document.getElementById('edit-user-doc');
+  const uniInput = document.getElementById('edit-user-uni');
+  const aptInput = document.getElementById('edit-user-apt');
+  const addrInput = document.getElementById('edit-user-addr');
+  const landlordInput = document.getElementById('edit-user-landlord');
+  const phoneInput = document.getElementById('edit-user-phone');
+  const termInput = document.getElementById('edit-user-term');
+  const radicadoInput = document.getElementById('edit-user-radicado');
+
+  if (editId) editId.value = user.id;
+  if (badgeId) badgeId.textContent = user.id;
+  if (badgeRad) badgeRad.textContent = `Rad: ${user.radicado || 'UPTC-SOG-302'}`;
+  if (nameInput) nameInput.value = user.name || '';
+  if (docInput) docInput.value = user.documentId || '';
+  if (uniInput) uniInput.value = user.university || '';
+  if (aptInput) aptInput.value = user.apartment || '';
+  if (addrInput) addrInput.value = user.address || '';
+  if (landlordInput) landlordInput.value = user.landlord || '';
+  if (phoneInput) phoneInput.value = user.landlordPhone || '';
+  if (termInput) termInput.value = user.term || '';
+  if (radicadoInput) radicadoInput.value = user.radicado || '';
+
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+}
+
+function deleteCurrentEditUser() {
+  const editId = document.getElementById('edit-user-id')?.value;
+  if (!editId) return;
+
+  const users = window.appStore.getUsers();
+  if (users.length <= 1) {
+    showToast('No puedes eliminar el único perfil de usuario.');
+    return;
+  }
+
+  const user = users.find(u => u.id === editId);
+  const userName = user ? user.name : editId;
+
+  if (confirm(`¿Estás seguro de que deseas eliminar el perfil de ${userName}? Se eliminarán sus registros locales.`)) {
+    try {
+      const deleted = window.appStore.deleteUser(editId);
+      showToast(`Perfil ${deleted.name} eliminado.`);
+      closeUserModal();
+      updateUserInterface();
+    } catch (e) {
+      showToast(e.message || 'Error al eliminar usuario');
+    }
   }
 }
 
@@ -1857,7 +2104,11 @@ function renderUserProfilesList() {
           </div>
         </div>
 
-        <div>
+        <div class="flex items-center gap-2">
+          <button onclick="openEditUserForm('${u.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs flex items-center gap-1 transition-all active:scale-95" title="Editar datos del inquilino">
+            <span class="material-symbols-outlined text-sm text-indigo-600">edit</span>
+            <span class="hidden sm:inline">Editar</span>
+          </button>
           ${isActive ? `
             <span class="px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-indigo-100 text-indigo-700 inline-block">
               Activo
@@ -1879,6 +2130,254 @@ function selectUserProfile(userId) {
     showToast(`Perfil cambiado a: ${user.name}`);
     closeUserModal();
     updateUserInterface();
+  }
+}
+
+// =============================================================================
+// VISTA DEDICADA: FICHA TÉCNICA Y SOLUCIÓN DEL DAÑO (¿QUÉ PASA Y CÓMO ARREGLARLO?)
+// =============================================================================
+
+function renderDamageDetailView(damageId) {
+  const user = window.appStore.getActiveUser();
+  const damages = window.appStore.getDamages();
+  if (!user || damages.length === 0) {
+    showToast('No hay daños registrados en este apartamento.');
+    window.location.hash = 'dashboard';
+    return;
+  }
+
+  const selectedDamage = window.appStore.getDamage(damageId) || damages[0];
+  if (!selectedDamage) return;
+
+  window.appStore.activeDamageId = selectedDamage.id;
+
+  // Actualizar selector de daños
+  const selector = document.getElementById('detail-damage-selector');
+  if (selector) {
+    selector.innerHTML = damages.map(d => `
+      <option value="${d.id}" ${d.id === selectedDamage.id ? 'selected' : ''}>
+        [${d.id}] ${d.title}
+      </option>
+    `).join('');
+  }
+
+  // Badges y Título
+  const badgeId = document.getElementById('detail-badge-id');
+  const badgeStatus = document.getElementById('detail-badge-status');
+  const titleElem = document.getElementById('detail-title');
+  if (badgeId) badgeId.textContent = selectedDamage.id;
+  if (badgeStatus) badgeStatus.textContent = selectedDamage.status || 'Activo';
+  if (titleElem) titleElem.textContent = selectedDamage.title;
+
+  // Encabezado Certificado
+  const certRadicado = document.getElementById('detail-cert-radicado');
+  const headApto = document.getElementById('detail-header-apartment');
+  const headMeta = document.getElementById('detail-header-meta');
+  const headSeverity = document.getElementById('detail-header-severity');
+  const headStatus = document.getElementById('detail-header-status');
+  const headTypology = document.getElementById('detail-header-typology');
+
+  if (certRadicado) certRadicado.textContent = `Radicado: ${user.radicado || 'UPTC-SOG-302'}`;
+  if (headApto) headApto.textContent = user.apartment;
+  if (headMeta) headMeta.textContent = `Inquilino: ${user.name} (${user.documentId || 'C.C.'}) • ${user.university} • Vigencia: ${user.term}`;
+  if (headSeverity) headSeverity.textContent = selectedDamage.severity;
+  if (headStatus) headStatus.textContent = selectedDamage.status || 'Activo / Pendiente';
+  if (headTypology) headTypology.textContent = selectedDamage.typologyLabel || selectedDamage.typology;
+
+  // Foto y Metadatos
+  const mainImg = document.getElementById('detail-main-img');
+  const photoDate = document.getElementById('detail-photo-date');
+  const photoRoom = document.getElementById('detail-photo-room');
+  const metaRoom = document.getElementById('detail-meta-room');
+  const metaDim = document.getElementById('detail-meta-dimensions');
+  const metaFirstDate = document.getElementById('detail-meta-firstdate');
+  const metaImput = document.getElementById('detail-meta-imputabilidad');
+  const initialNote = document.getElementById('detail-initial-note');
+
+  if (mainImg) mainImg.src = selectedDamage.initialImage;
+  if (photoDate) photoDate.textContent = selectedDamage.initialDateFormatted || selectedDamage.initialDate;
+  if (photoRoom) photoRoom.textContent = `Ubicación: ${selectedDamage.room}`;
+  if (metaRoom) metaRoom.textContent = selectedDamage.room;
+  if (metaDim) metaDim.textContent = selectedDamage.initialDimensions || 'Área estimada';
+  if (metaFirstDate) metaFirstDate.textContent = selectedDamage.initialDateFormatted || selectedDamage.initialDate;
+  if (metaImput) metaImput.textContent = selectedDamage.imputabilidad || 'Reportado Inquilino';
+  if (initialNote) initialNote.textContent = selectedDamage.initialNote || 'Sin notas adicionales.';
+
+  // Historial de Fotos y Evolución
+  const updatesCount = document.getElementById('detail-updates-count');
+  const updatesList = document.getElementById('detail-updates-list');
+  const updates = selectedDamage.updates || [];
+
+  if (updatesCount) updatesCount.textContent = `${updates.length} ${updates.length === 1 ? 'foto' : 'fotos'}`;
+  if (updatesList) {
+    if (updates.length === 0) {
+      updatesList.innerHTML = `
+        <div class="p-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center text-xs text-slate-500">
+          Aún no hay fotos adicionales de seguimiento. Puedes añadir una con el botón "+ Agregar Foto".
+        </div>
+      `;
+    } else {
+      updatesList.innerHTML = updates.map((upd, idx) => `
+        <div class="flex items-center gap-3 p-2.5 bg-slate-50 hover:bg-slate-100 rounded-2xl border border-slate-200 transition-all">
+          <img src="${upd.image}" alt="Seguimiento ${idx + 1}" class="w-16 h-16 object-cover rounded-xl border border-slate-200 cursor-pointer shadow-2xs hover:scale-105 transition-transform" onclick="openDamageImageModal('${upd.image}')" title="Clic para ampliar foto" />
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between text-[11px] mb-0.5">
+              <span class="font-extrabold text-slate-900">${upd.dateFormatted || upd.date}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold">${upd.severity || selectedDamage.severity}</span>
+            </div>
+            <p class="text-xs text-slate-600 line-clamp-2 leading-tight">${upd.note}</p>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Diagnóstico Forense y Solución Técnica (AI / Motor Experto)
+  const analysis = CasaAlertaAI.getOrGenerateDamageAnalysis(selectedDamage);
+  const what = analysis?.whatIsHappening || {
+    summary: selectedDamage.title,
+    explanation: 'Deterioro visible en la superficie del inmueble sujeto a inspección.',
+    symptoms: ['Desgaste observable', 'Afectación en superficie'],
+    risks: 'Deterioro progresivo si no se atiende a tiempo.'
+  };
+  const fix = analysis?.howToFix || {
+    definitiveSteps: [
+      'Paso 1: Localizar e interrumpir la causa del deterioro.',
+      'Paso 2: Sanear y preparar la superficie.',
+      'Paso 3: Aplicar resanes o sellos apropiados.',
+      'Paso 4: Pintura y acabado final.'
+    ],
+    studentImmediateAction: 'Ventilar la zona y no raspar en seco.',
+    whoPays: 'ARRENDADOR (Ley 820 de 2003)',
+    requiredTrade: 'Técnico especialista o maestro de obra',
+    estimatedMaterials: 'Materiales selladores y pintura adecuada'
+  };
+
+  // Llenar Bloque 1: ¿Qué está pasando?
+  const whatSource = document.getElementById('detail-what-source');
+  const whatSummary = document.getElementById('detail-what-summary');
+  const whatExplanation = document.getElementById('detail-what-explanation');
+  const whatSymptoms = document.getElementById('detail-what-symptoms');
+  const whatRisks = document.getElementById('detail-what-risks');
+
+  if (whatSource) whatSource.textContent = analysis?.source || 'Motor Experto Pericial';
+  if (whatSummary) whatSummary.textContent = what.summary || selectedDamage.title;
+  if (whatExplanation) whatExplanation.textContent = what.explanation || selectedDamage.initialNote;
+  if (whatRisks) whatRisks.textContent = what.risks || 'Riesgo de daño material si no se interviene.';
+  if (whatSymptoms) {
+    const symList = Array.isArray(what.symptoms) ? what.symptoms : [what.symptoms];
+    whatSymptoms.innerHTML = symList.map(s => `
+      <span class="inline-flex items-center gap-1.5 text-xs bg-amber-50 px-3 py-1 rounded-xl border border-amber-200 text-amber-950 font-bold shadow-2xs">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+        ${s}
+      </span>
+    `).join('');
+  }
+
+  // Llenar Bloque 2: ¿De qué forma se puede arreglar?
+  const fixSteps = document.getElementById('detail-fix-steps');
+  const fixImmediate = document.getElementById('detail-fix-immediate');
+  const fixWhoPays = document.getElementById('detail-fix-whopays');
+  const fixTrade = document.getElementById('detail-fix-trade');
+  const fixMaterials = document.getElementById('detail-fix-materials');
+
+  if (fixSteps) {
+    const stepsList = Array.isArray(fix.definitiveSteps) ? fix.definitiveSteps : [fix.definitiveSteps];
+    fixSteps.innerHTML = stepsList.map((step, idx) => `
+      <div class="bg-slate-50 p-3 rounded-2xl border border-indigo-100 flex items-start gap-3 text-xs text-slate-800 font-medium">
+        <span class="w-6 h-6 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5 shadow-2xs">
+          ${idx + 1}
+        </span>
+        <span class="leading-relaxed font-semibold">${step}</span>
+      </div>
+    `).join('');
+  }
+  if (fixImmediate) fixImmediate.textContent = fix.studentImmediateAction || 'Ventila el espacio y notifica a tu arrendador.';
+  if (fixWhoPays) fixWhoPays.textContent = fix.whoPays || 'ARRENDADOR conforme a Ley 820 de 2003.';
+  if (fixTrade) fixTrade.textContent = fix.requiredTrade || 'Maestro de obra certificado.';
+  if (fixMaterials) fixMaterials.textContent = fix.estimatedMaterials || 'Materiales de reposición técnica.';
+
+  // Configurar botones de WhatsApp
+  const waBtnTop = document.getElementById('detail-wa-btn');
+  const waBtnBottom = document.getElementById('detail-wa-action-btn');
+  const waMessage = CasaAlertaAI.generateSingleDamageWhatsApp(selectedDamage, user);
+  const waPhone = user.landlordPhone ? `phone=${user.landlordPhone}&` : '';
+  const waUrl = `https://api.whatsapp.com/send?${waPhone}text=${encodeURIComponent(waMessage)}`;
+
+  if (waBtnTop) waBtnTop.href = waUrl;
+  if (waBtnBottom) waBtnBottom.href = waUrl;
+}
+
+function openDamageDetail(damageId) {
+  window.appStore.activeDamageId = damageId;
+  window.location.hash = `detalle-danio?id=${damageId}`;
+  renderDamageDetailView(damageId);
+}
+
+function printDamageDetail() {
+  document.body.classList.add('printing-detail');
+  document.body.classList.remove('printing-report');
+  window.print();
+  setTimeout(() => {
+    document.body.classList.remove('printing-detail');
+  }, 600);
+}
+
+function copyDetailFixGuide() {
+  const damageId = window.appStore.activeDamageId;
+  const damage = window.appStore.getDamage(damageId);
+  if (!damage) return;
+  const analysis = CasaAlertaAI.getOrGenerateDamageAnalysis(damage);
+  const what = analysis?.whatIsHappening || {};
+  const fix = analysis?.howToFix || {};
+
+  const text = `GUÍA TÉCNICA DE REPARACIÓN Y PERITAJE — CASAALERTA
+Incidencia: [${damage.id}] ${damage.title} (${damage.room})
+Nivel de Severidad: ${damage.severity}
+
+1. ¿QUÉ ES LO QUE ESTÁ PASANDO?
+${what.summary || ''}
+${what.explanation || ''}
+
+2. ¿DE QUÉ FORMA SE DEBE ARREGLAR?
+${Array.isArray(fix.definitiveSteps) ? fix.definitiveSteps.join('\n') : ''}
+
+MEDIDA PROVISIONAL DEL ESTUDIANTE / INQUILINO:
+${fix.studentImmediateAction || ''}
+
+RESPONSABILIDAD LEGAL DE PAGO:
+${fix.whoPays || ''}
+
+OFICIO REQUERIDO: ${fix.requiredTrade || ''}
+MATERIALES SUGERIDOS: ${fix.estimatedMaterials || ''}`;
+
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Guía técnica copiada al portapapeles');
+  }).catch(() => {
+    showToast('Error al copiar guía al portapapeles');
+  });
+}
+
+function openDamageImageModal(specificUrl) {
+  const modal = document.getElementById('modal-image-viewer');
+  const target = document.getElementById('modal-image-target');
+  const title = document.getElementById('modal-image-title');
+  const damage = window.appStore.getDamage(window.appStore.activeDamageId);
+
+  const imgUrl = specificUrl || damage?.initialImage || '';
+  if (target) target.src = imgUrl;
+  if (title && damage) title.textContent = `Fotografía Pericial: [${damage.id}] ${damage.title}`;
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+}
+
+function closeDamageImageModal() {
+  const modal = document.getElementById('modal-image-viewer');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
   }
 }
 
@@ -2610,3 +3109,11 @@ window.openStatusModal = openStatusModal;
 window.closeStatusModal = closeStatusModal;
 window.saveStatusModalChange = saveStatusModalChange;
 window.CasaAlertaAI = CasaAlertaAI;
+window.openEditUserForm = openEditUserForm;
+window.deleteCurrentEditUser = deleteCurrentEditUser;
+window.renderDamageDetailView = renderDamageDetailView;
+window.openDamageDetail = openDamageDetail;
+window.printDamageDetail = printDamageDetail;
+window.copyDetailFixGuide = copyDetailFixGuide;
+window.openDamageImageModal = openDamageImageModal;
+window.closeDamageImageModal = closeDamageImageModal;

@@ -14,38 +14,42 @@ Los estudiantes universitarios que viven en apartamentos arrendados frecuentemen
 
 ## ✨ Funcionalidades Principales & Mejoras IA
 
-1. **🤖 Asistente de Visión & Peritaje con Inteligencia Artificial ("¿Qué pasa y cómo arreglarlo?")**
-   - **Diagnóstico Automático al Adjuntar Foto**: Al subir o capturar una foto del daño, la IA analiza la imagen y muestra de forma inmediata dos bloques esenciales:
-     - 🔍 **¿Qué es lo que está pasando?**: Diagnóstico explicativo accesible del fenómeno físico/químico, síntomas detectados y riesgos a la salud o infraestructura.
-     - 🛠️ **¿De qué forma se puede arreglar?**: Guía de reparación técnica paso a paso, medidas provisionales de emergencia para el estudiante, aclaración jurídica de **a quién le corresponde pagarlo** (Ley 820 de 2003) y materiales u oficios requeridos.
-   - **Acciones Rápidas**: Botón `🪄 Aplicar Datos al Formulario` y botón `📋 Copiar Guía de Arreglo` para compartirla con el arrendador o contratista por WhatsApp.
-   - **Doble Motor de IA**: Conexión directa a **Google Gemini 1.5/2.0 Flash API** con visión multimodal en vivo + **Motor Pericial Experto Integrado Offline** que opera sin necesidad de internet ni claves.
+1. **👥 Guardado Permanente de Usuarios y Gestión de Apartamentos**
+   - **Persistencia Confiable en LocalStorage**: Toda la información de los inquilinos, apartamentos, vigencias de contrato y daños queda guardada de forma permanente en el navegador sin perderse al recargar o cerrar la página.
+   - **Edición Completa del Perfil**: Panel interactivo para editar en cualquier momento los datos del estudiante o inquilino activo (Nombre completo, Cédula, Universidad o carrera, Apartamento, Dirección en Sogamoso, Nombre del casero, WhatsApp del arrendador, Vigencia del contrato y Radicado oficial).
+   - **Soporte Multi-Inquilino**: Permite alternar fácilmente entre distintos apartamentos o estudiantes registrados en la misma aplicación.
 
-2. **⚖️ Asistente Legal de Reclamación con IA (Ley 820 de 2003 de Colombia)**
+2. **🔬 Página Dedicada & Ficha Técnica del Daño (`#detalle-danio`)**
+   - **Página Independiente de Inspección**: Cada daño registrado cuenta con su propia ficha pericial individualizada accesible desde cualquier tarjeta del Dashboard mediante el botón `🔍 Ficha Técnica: ¿Qué pasa y cómo arreglarlo?` o inmediatamente tras registrar un daño con fotografía.
+   - **Visor Fotográfico en Alta Resolución**: Inspección detallada con zoom interactivo, marcas de tiempo y certificado pericial forense de custodia.
+   - **Bloque 1: ¿Qué es lo que está pasando?**:
+     - *Dictamen pericial en una frase.*
+     - *Explicación física y constructiva accesible*: detalla qué fenómeno ocurre en el muro, placa, tubería o marco (ej. filtración hídrica, eflorescencia salina, condensación, fatiga de empaque o desajuste mecánico).
+     - *Síntomas visibles confirmados en la fotografía.*
+     - *Evaluación de riesgos y consecuencias* (afecciones respiratorias por hongos, riesgos de cortocircuito o desprendimiento).
+   - **Bloque 2: ¿De qué forma se puede arreglar?**:
+     - *Ruta de reparación técnica definitiva en 4 pasos.*
+     - *Medida provisional inmediata para el estudiante*: recomendaciones claras de qué hacer y qué NO hacer para mitigar el daño sin perder la garantía del arrendamiento.
+     - *Determinación de responsabilidad legal (¿Quién lo paga?)*: fundamentación textual basada en los Artículos 19 y 20 de la Ley 820 de 2003 y el Código Civil Colombiano.
+     - *Oficio técnico sugerido y lista de materiales clave*.
+   - **Acciones Rápidas**: Enlace pre-redactado para enviar el dictamen directo al WhatsApp del arrendador, botón para copiar la guía técnica y modo de impresión pericial individual en PDF.
+
+3. **🤖 Asistente de Visión & Peritaje con Inteligencia Artificial Dual**
+   - Conexión con **Google Gemini 1.5/2.0 Flash API** con visión multimodal en vivo + **Motor Pericial Experto Integrado Offline** con base de conocimiento patológica (Humedad, Grietas, Plomería, Eléctrico y Cerrajería).
+
+4. **⚖️ Asistente Legal de Reclamación con IA (Ley 820 de 2003 de Colombia)**
    - Generador dinámico de comunicaciones formales y mensajes de WhatsApp fundamentados en los **Artículos 19 y 20 de la Ley 820 de 2003** y el **Artículo 1985 del Código Civil**.
-   - Selector interactivo de tono:
-     - 🟢 *Preventivo & Cordial*: Aviso inicial colaborativo.
-     - ⚖️ *Formal Probatorio*: Citación legal explícita de reparaciones indispensables a cargo del arrendador.
-     - 🚨 *Urgente / Reiterado*: Notificación pericial con advertencia de retención y daño emergente.
+   - Selector interactivo de tono: *Preventivo*, *Formal* y *Urgente*.
 
-3. **🛡️ Compresión Automática de Imágenes con Canvas HTML5**
-   - Redimensionamiento y optimización de fotos a ~150KB en tiempo real al cargarlas desde la cámara del celular, webcam o archivo.
-   - Resuelve de raíz el límite de almacenamiento de `localStorage`, permitiendo documentar docenas de fotos de alta resolución sin colapsos de memoria.
+5. **🛡️ Compresión Automática de Imágenes con Canvas HTML5**
+   - Redimensionamiento y optimización de fotos a ~150KB en tiempo real al cargarlas desde la cámara del celular, webcam o archivo, evitando desbordamientos de memoria local.
 
-4. **🔄 Ciclo de Vida del Daño & Búsqueda en Tiempo Real**
-   - Nuevos estados de seguimiento: `🟡 Pendiente / Activo`, `📬 Notificado al Arrendador` y `✅ Reparado / Subsanado`.
-   - Barra de búsqueda interactiva instantánea en el Dashboard por nombre, zona o descripción.
+6. **🔄 Ciclo de Vida del Daño & Búsqueda en Tiempo Real**
+   - Estados de seguimiento: `🟡 Pendiente / Activo`, `📬 Notificado al Arrendador` y `✅ Reparado / Subsanado`.
+   - Búsqueda en tiempo real instantánea y filtrado por tipo o zona.
 
-5. **💾 Respaldo y Portabilidad de Datos (Backup & Restore)**
-   - **Exportar Expediente (JSON)**: Descarga una copia de seguridad íntegra de usuarios, evidencias fotográficas y fechas.
-   - **Importar Expediente (JSON)**: Restaura todas las evidencias en cualquier navegador o equipo al instante.
-
-6. **RF-01 a RF-05: Módulos Probatorios Base**
-   - **RF-01**: Registro de daños con fotografía, geolocalización y metadatos certificados SHA-256.
-   - **RF-02**: Adición de fotos de seguimiento cronológico posterior.
-   - **RF-03**: Comparador visual antes vs. después con dictamen pericial de evolución con IA.
-   - **RF-04**: Generador de informe formal en PDF listo para imprimir (`Ctrl + P`).
-   - **RF-05**: Envío directo pre-redactado vía WhatsApp al arrendador con radicado único.
+7. **💾 Respaldo y Portabilidad de Datos (JSON)**
+   - Exportación e importación de expediente completo con todos los usuarios y fotografías.
 
 ---
 

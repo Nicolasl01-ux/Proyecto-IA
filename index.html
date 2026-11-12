@@ -88,7 +88,7 @@
         background: white !important;
         color: black !important;
       }
-      aside, header, #sidebar-nav, .no-print, #view-dashboard, #view-nuevo-registro, #view-linea-de-tiempo {
+      aside, header, #sidebar-nav, .no-print {
         display: none !important;
       }
       .pl-72, .md\:pl-72 {
@@ -97,7 +97,24 @@
       main {
         padding-top: 0 !important;
       }
-      #view-reportes-pdf {
+      /* Modo impresión general de informe */
+      body.printing-report #view-dashboard,
+      body.printing-report #view-nuevo-registro,
+      body.printing-report #view-linea-de-tiempo,
+      body.printing-report #view-detalle-danio {
+        display: none !important;
+      }
+      body.printing-report #view-reportes-pdf {
+        display: block !important;
+      }
+      /* Modo impresión de ficha técnica individual */
+      body.printing-detail #view-dashboard,
+      body.printing-detail #view-nuevo-registro,
+      body.printing-detail #view-linea-de-tiempo,
+      body.printing-detail #view-reportes-pdf {
+        display: none !important;
+      }
+      body.printing-detail #view-detalle-danio {
         display: block !important;
       }
       #pdf-folio-container {
@@ -1078,6 +1095,291 @@
         </div>
       </section>
 
+      <!-- ========================================== -->
+      <!-- VISTA 5: FICHA TÉCNICA Y SOLUCIÓN DEL DAÑO -->
+      <!-- ¿QUÉ ES LO QUE PASA Y DE QUÉ FORMA SE PUEDE ARREGLAR? -->
+      <!-- ========================================== -->
+      <section id="view-detalle-danio" class="hidden p-4 md:p-8 max-w-[1280px] w-full mx-auto space-y-6">
+        
+        <!-- Barra de Navegación Superior y Selector -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 md:p-5 rounded-3xl border border-slate-200/90 shadow-sm no-print">
+          <div class="flex items-center gap-3">
+            <button onclick="window.location.hash='dashboard'" class="w-10 h-10 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all active:scale-95 shadow-2xs" title="Volver al panel de daños">
+              <span class="material-symbols-outlined text-lg">arrow_back</span>
+            </button>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Ficha Pericial Individual</span>
+                <span class="text-[10px] bg-indigo-100 text-indigo-700 font-extrabold px-2 py-0.5 rounded-full" id="detail-badge-id">DM-01</span>
+                <span class="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-extrabold px-2 py-0.5 rounded-full" id="detail-badge-status">Activo</span>
+              </div>
+              <h1 class="text-base md:text-lg font-black text-slate-900 leading-tight" id="detail-title">Humedad e infiltración cielo raso</h1>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Selector de Daño Rápido -->
+            <div class="flex items-center gap-1.5">
+              <label for="detail-damage-selector" class="text-xs font-bold text-slate-500 hidden sm:inline">Ver daño:</label>
+              <select id="detail-damage-selector" onchange="openDamageDetail(this.value)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-[200px] truncate">
+                <!-- Opciones dinámicas inyectadas -->
+              </select>
+            </div>
+            <button onclick="printDamageDetail()" class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95" title="Imprimir o guardar en PDF esta ficha técnica">
+              <span class="material-symbols-outlined text-base">print</span>
+              <span class="hidden sm:inline">Imprimir Ficha</span>
+            </button>
+            <a id="detail-wa-btn" href="#" target="_blank" class="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold shadow-sm transition-all active:scale-95" title="Enviar diagnóstico formal a WhatsApp del propietario">
+              <span class="material-symbols-outlined text-base">chat</span>
+              <span>Notificar Casero</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Encabezado Pericial Certificado (Visible en pantalla e impresión) -->
+        <div id="detail-printable-header" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 rounded-3xl shadow-md border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] bg-emerald-500 text-slate-950 font-black px-2 py-0.5 rounded-md uppercase tracking-wider">Peritaje Locativo Certificado</span>
+              <span class="text-xs text-indigo-200 font-semibold" id="detail-cert-radicado">Radicado: UPTC-SOG-302</span>
+            </div>
+            <h2 class="text-lg md:text-xl font-black text-white" id="detail-header-apartment">Apartamento 302 — Residencias El Sol</h2>
+            <p class="text-xs text-slate-300 font-medium" id="detail-header-meta">Inquilino: Mateo Gómez • Sogamoso (Boyacá) • Vigencia: Ago 2024 - Dic 2024</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/10 text-center">
+              <span class="text-[9px] uppercase font-bold text-slate-300 block">Severidad</span>
+              <span class="text-xs font-black text-amber-400" id="detail-header-severity">Alta</span>
+            </div>
+            <div class="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/10 text-center">
+              <span class="text-[9px] uppercase font-bold text-slate-300 block">Estado</span>
+              <span class="text-xs font-black text-emerald-400" id="detail-header-status">Activo / Pendiente</span>
+            </div>
+            <div class="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/10 text-center">
+              <span class="text-[9px] uppercase font-bold text-slate-300 block">Tipología</span>
+              <span class="text-xs font-black text-indigo-300" id="detail-header-typology">Humedad</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contenedor Principal: 2 Columnas -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          <!-- Columna Izquierda (5 Cols): Evidencia Fotográfica y Metadatos de Registro -->
+          <div class="lg:col-span-5 space-y-6">
+            <!-- Tarjeta Foto Principal -->
+            <div class="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-sm">
+              <div class="relative w-full aspect-[4/3] bg-slate-950 overflow-hidden group">
+                <img id="detail-main-img" src="" alt="Foto del daño" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                
+                <!-- Overlay Pericial / Marca de agua -->
+                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/95 via-slate-900/65 to-transparent p-4 text-white">
+                  <div class="flex items-center justify-between text-[11px] font-semibold">
+                    <span class="flex items-center gap-1 text-emerald-400">
+                      <span class="material-symbols-outlined text-xs">verified</span>
+                      <span>Registro Fotográfico Custodiado</span>
+                    </span>
+                    <span id="detail-photo-date" class="text-slate-300">12 Ago 2024</span>
+                  </div>
+                  <p class="text-xs font-medium text-slate-200 mt-0.5" id="detail-photo-room">Ubicación: Baño Principal</p>
+                </div>
+
+                <!-- Botón Zoom / Pantalla Completa -->
+                <button onclick="openDamageImageModal()" class="absolute top-3 right-3 bg-slate-900/80 hover:bg-slate-900 text-white p-2 rounded-xl backdrop-blur-md transition-all shadow-md active:scale-95 no-print" title="Ampliar fotografía">
+                  <span class="material-symbols-outlined text-base">zoom_in</span>
+                </button>
+              </div>
+
+              <!-- Metadatos Periciales -->
+              <div class="p-5 space-y-3">
+                <h3 class="text-xs font-black uppercase text-slate-400 tracking-wider">Metadatos Certificados</h3>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Habitación / Zona</span>
+                    <span class="font-extrabold text-slate-800" id="detail-meta-room">Baño Principal</span>
+                  </div>
+                  <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Dimensiones / Área</span>
+                    <span class="font-extrabold text-slate-800" id="detail-meta-dimensions">Ø ~10 cm</span>
+                  </div>
+                  <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Fecha Primer Reporte</span>
+                    <span class="font-extrabold text-slate-800" id="detail-meta-firstdate">12 Ago 2024</span>
+                  </div>
+                  <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Imputabilidad Legal</span>
+                    <span class="font-extrabold text-slate-800" id="detail-meta-imputabilidad">Estructural Prev.</span>
+                  </div>
+                </div>
+
+                <!-- Nota del Estudiante -->
+                <div class="bg-indigo-50/50 p-3.5 rounded-2xl border border-indigo-100 space-y-1">
+                  <span class="text-[10px] text-indigo-700 font-extrabold uppercase tracking-wide block">Declaración del Inquilino al Registrar:</span>
+                  <p class="text-xs text-slate-700 leading-relaxed font-medium" id="detail-initial-note">
+                    Mancha amarillenta tras lluvias fuertes. Textura plana sin descascaramiento visible.
+                  </p>
+                </div>
+
+                <div class="pt-2 flex items-center justify-between gap-2 no-print">
+                  <button onclick="openFollowUpModal(window.appStore.activeDamageId)" class="w-full inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 text-white py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all shadow-md shadow-indigo-500/20 active:scale-95">
+                    <span class="material-symbols-outlined text-sm">add_a_photo</span>
+                    <span>+ Agregar Foto de Seguimiento</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Evolución y Fotos de Seguimiento -->
+            <div id="detail-evolution-card" class="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-sm space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-indigo-600 text-lg">history_edu</span>
+                  <h3 class="text-xs font-black uppercase text-slate-800 tracking-wider">Historial de Fotos Adicionales</h3>
+                </div>
+                <span class="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full" id="detail-updates-count">0 fotos</span>
+              </div>
+              <div id="detail-updates-list" class="space-y-3">
+                <!-- Se inyecta dinámicamente -->
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Columna Derecha (7 Cols): Diagnóstico "¿Qué está pasando?" y Solución "¿De qué forma se arregla?" -->
+          <div class="lg:col-span-7 space-y-6">
+
+            <!-- BLOQUE 1: ¿QUÉ ES LO QUE ESTÁ PASANDO? -->
+            <div class="bg-white rounded-3xl border border-amber-200/90 shadow-sm p-6 space-y-4">
+              <div class="flex items-start justify-between border-b border-amber-100 pb-3 gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center font-bold shadow-sm flex-shrink-0">
+                    <span class="material-symbols-outlined text-xl">biotech</span>
+                  </div>
+                  <div>
+                    <span class="text-[10px] font-extrabold text-amber-800 uppercase tracking-widest block">Fase 1: Diagnóstico Técnico Forense</span>
+                    <h2 class="text-base md:text-lg font-black text-slate-900 leading-tight">¿Qué es lo que está pasando?</h2>
+                  </div>
+                </div>
+                <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200 flex-shrink-0" id="detail-what-source">
+                  Motor Experto Pericial
+                </span>
+              </div>
+
+              <!-- Resumen directo -->
+              <div class="bg-amber-50/70 p-4 rounded-2xl border border-amber-200 space-y-1">
+                <span class="text-[10px] font-black uppercase text-amber-900 tracking-wider block">Dictamen en una frase:</span>
+                <p class="text-xs md:text-sm font-bold text-amber-950 leading-snug" id="detail-what-summary">
+                  Saturación hídrica progresiva en el sustrato por filtración activa exterior o de losa.
+                </p>
+              </div>
+
+              <!-- Explicación física / química constructiva -->
+              <div class="space-y-1.5">
+                <span class="text-xs font-black uppercase text-slate-600 tracking-wide block">Explicación Física y Constructiva de la Causa:</span>
+                <p class="text-xs text-slate-700 leading-relaxed font-medium bg-slate-50 p-4 rounded-2xl border border-slate-100" id="detail-what-explanation">
+                  Existe ingreso de agua no contenida proveniente de fachada...
+                </p>
+              </div>
+
+              <!-- Síntomas visibles confirmados -->
+              <div class="space-y-2">
+                <span class="text-xs font-black uppercase text-slate-600 tracking-wide block">Síntomas Visibles Confirmados en la Fotografía:</span>
+                <div class="flex flex-wrap gap-2" id="detail-what-symptoms">
+                  <!-- Inyectado dinámicamente -->
+                </div>
+              </div>
+
+              <!-- Riesgos evaluados -->
+              <div class="bg-rose-50/60 p-4 rounded-2xl border border-rose-200/80 space-y-1">
+                <div class="flex items-center gap-1.5 text-rose-800">
+                  <span class="material-symbols-outlined text-base">emergency</span>
+                  <span class="text-xs font-black uppercase tracking-wider">Riesgos y Consecuencias si no se atiende:</span>
+                </div>
+                <p class="text-xs text-rose-950 leading-relaxed font-medium mt-1" id="detail-what-risks">
+                  Riesgo severo para las vías respiratorias por esporas fúngicas...
+                </p>
+              </div>
+            </div>
+
+            <!-- BLOQUE 2: ¿DE QUÉ FORMA SE PUEDE ARREGLAR? -->
+            <div class="bg-white rounded-3xl border border-indigo-200/90 shadow-sm p-6 space-y-5">
+              <div class="flex items-start justify-between border-b border-indigo-100 pb-3 gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-700 text-white flex items-center justify-center font-bold shadow-sm flex-shrink-0">
+                    <span class="material-symbols-outlined text-xl">build_circle</span>
+                  </div>
+                  <div>
+                    <span class="text-[10px] font-extrabold text-indigo-700 uppercase tracking-widest block">Fase 2: Guía de Reparación & Protocolo Legal</span>
+                    <h2 class="text-base md:text-lg font-black text-slate-900 leading-tight">¿De qué forma se puede arreglar?</h2>
+                  </div>
+                </div>
+                <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 flex-shrink-0">
+                  Solución Definitiva
+                </span>
+              </div>
+
+              <!-- Pasos de Solución Definitiva -->
+              <div class="space-y-2.5">
+                <span class="text-xs font-black uppercase text-slate-700 tracking-wide block">Pasos Técnicos de Reparación Definitiva:</span>
+                <div id="detail-fix-steps" class="space-y-2.5">
+                  <!-- Se inyecta dinámicamente -->
+                </div>
+              </div>
+
+              <!-- Medida Provisional Inmediata para el Inquilino -->
+              <div class="bg-blue-50/80 p-4 rounded-2xl border border-blue-200 space-y-1.5">
+                <div class="flex items-center gap-1.5 text-blue-900">
+                  <span class="material-symbols-outlined text-base">front_hand</span>
+                  <span class="text-xs font-black uppercase tracking-wider">Medida Provisional Inmediata para el Inquilino:</span>
+                </div>
+                <p class="text-xs text-blue-950 leading-relaxed font-semibold" id="detail-fix-immediate">
+                  Ventila la habitación... NO raspes en seco...
+                </p>
+              </div>
+
+              <!-- Determinación Legal: ¿Quién debe pagarlo? -->
+              <div class="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-200 space-y-1.5">
+                <div class="flex items-center gap-1.5 text-emerald-900">
+                  <span class="material-symbols-outlined text-base">gavel</span>
+                  <span class="text-xs font-black uppercase tracking-wider">¿Quién asume el costo? (Ley 820 de 2003 / Código Civil):</span>
+                </div>
+                <p class="text-xs text-emerald-950 leading-relaxed font-bold" id="detail-fix-whopays">
+                  ARRENDADOR (Propietario) — Conforme a los Artículos 19 y 20 de la Ley 820 de 2003...
+                </p>
+              </div>
+
+              <!-- Oficio y Materiales -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-1">
+                  <span class="text-[10px] uppercase font-bold text-slate-400 block">Oficio Técnico Idóneo:</span>
+                  <p class="font-extrabold text-slate-800" id="detail-fix-trade">Maestro de obra especialista en impermeabilizaciones</p>
+                </div>
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-1">
+                  <span class="text-[10px] uppercase font-bold text-slate-400 block">Materiales Sugeridos:</span>
+                  <p class="font-bold text-slate-700 leading-snug" id="detail-fix-materials">Impermeabilizante acrílico, sellador hidrófugo...</p>
+                </div>
+              </div>
+
+              <!-- Acciones al pie de la guía -->
+              <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 no-print">
+                <button onclick="copyDetailFixGuide()" class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95">
+                  <span class="material-symbols-outlined text-sm text-indigo-600">content_copy</span>
+                  <span>Copiar Guía Técnica de Arreglo</span>
+                </button>
+                <a id="detail-wa-action-btn" href="#" target="_blank" class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all shadow-md active:scale-95">
+                  <span class="material-symbols-outlined text-sm">send</span>
+                  <span>Compartir Dictamen y Solución por WhatsApp</span>
+                </a>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
     </main>
   </div>
 
@@ -1101,13 +1403,16 @@
         </button>
       </div>
 
-      <!-- Pestañas -->
-      <div class="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl">
-        <button id="tab-user-list-btn" type="button" class="flex-1 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 text-white shadow-sm transition-all">
+      <!-- Pestañas de Gestión de Usuarios -->
+      <div class="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl">
+        <button id="tab-user-list-btn" type="button" class="flex-1 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 text-white shadow-sm transition-all">
           Perfiles Registrados
         </button>
-        <button id="tab-user-new-btn" type="button" class="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition-all">
-          + Registrar Nuevo Inquilino
+        <button id="tab-user-edit-btn" type="button" class="flex-1 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition-all">
+          Editar Perfil Activo
+        </button>
+        <button id="tab-user-new-btn" type="button" class="flex-1 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition-all">
+          + Nuevo Inquilino
         </button>
       </div>
 
@@ -1168,9 +1473,88 @@
             <button type="button" onclick="closeUserModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">
               Cancelar
             </button>
-            <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
+            <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md active:scale-95 transition-all">
               Guardar y Activar Inquilino
             </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Panel 3: Formulario Editar Perfil Existente -->
+      <div id="panel-user-edit" class="hidden space-y-3">
+        <form id="form-edit-user" class="space-y-3.5">
+          <input type="hidden" id="edit-user-id" />
+          <div class="flex items-center justify-between bg-indigo-50/70 p-2.5 rounded-2xl border border-indigo-100">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-indigo-600 text-lg">badge</span>
+              <span class="text-xs font-black text-indigo-950" id="edit-user-badge-id">USR-01</span>
+            </div>
+            <span class="text-[11px] text-indigo-700 font-bold" id="edit-user-badge-radicado">Radicado: UPTC-SOG-302</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label for="edit-user-name" class="text-xs font-bold text-slate-800">Nombre Completo del Inquilino *</label>
+              <input type="text" id="edit-user-name" required placeholder="Ej: Mateo Gómez" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+            </div>
+            <div class="space-y-1">
+              <label for="edit-user-doc" class="text-xs font-bold text-slate-800">Cédula / Documento</label>
+              <input type="text" id="edit-user-doc" placeholder="Ej: C.C. 1.052.741.982" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <label for="edit-user-uni" class="text-xs font-bold text-slate-800">Universidad o Carrera</label>
+            <input type="text" id="edit-user-uni" placeholder="Ej: UPTC Sogamoso" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label for="edit-user-apt" class="text-xs font-bold text-slate-800">Apartamento / Inmueble *</label>
+              <input type="text" id="edit-user-apt" required placeholder="Ej: Apartamento 302 — Residencias El Sol" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+            </div>
+            <div class="space-y-1">
+              <label for="edit-user-addr" class="text-xs font-bold text-slate-800">Dirección en Sogamoso</label>
+              <input type="text" id="edit-user-addr" placeholder="Ej: Cra 11 # 14-25, Sogamoso, Boyacá" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label for="edit-user-landlord" class="text-xs font-bold text-slate-800">Arrendador o Propietario</label>
+              <input type="text" id="edit-user-landlord" placeholder="Ej: Don Hernando Pérez" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+            </div>
+            <div class="space-y-1">
+              <label for="edit-user-phone" class="text-xs font-bold text-slate-800">WhatsApp del Arrendador</label>
+              <input type="tel" id="edit-user-phone" placeholder="Ej: 573105551234" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label for="edit-user-term" class="text-xs font-bold text-slate-800">Vigencia del Contrato</label>
+              <input type="text" id="edit-user-term" placeholder="Ej: Agosto 2024 — Diciembre 2024" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+            </div>
+            <div class="space-y-1">
+              <label for="edit-user-radicado" class="text-xs font-bold text-slate-800">Radicado Oficial</label>
+              <input type="text" id="edit-user-radicado" placeholder="Ej: UPTC-SOG-302" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+            <button type="button" id="btn-delete-user" onclick="deleteCurrentEditUser()" class="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-all flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">delete</span>
+              <span>Eliminar Perfil</span>
+            </button>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="closeUserModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">
+                Cancelar
+              </button>
+              <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md flex items-center gap-1.5 active:scale-95 transition-all">
+                <span class="material-symbols-outlined text-sm">save</span>
+                <span>Guardar Cambios</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -1522,6 +1906,35 @@
         </button>
         <button type="button" onclick="saveStatusModalChange()" class="px-5 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
           Guardar Estado
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: VISOR DE FOTOGRAFÍA EN ALTA RESOLUCIÓN -->
+  <!-- ========================================== -->
+  <div id="modal-image-viewer" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+    <div class="relative max-w-4xl w-full bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col max-h-[92vh]">
+      <div class="p-4 flex items-center justify-between border-b border-slate-800 text-white">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-indigo-400">zoom_in</span>
+          <span class="text-xs font-extrabold" id="modal-image-title">Fotografía Pericial en Alta Resolución</span>
+        </div>
+        <button onclick="closeDamageImageModal()" class="text-slate-400 hover:text-white p-1 rounded-xl">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="p-3 flex-1 flex items-center justify-center bg-black/70 overflow-auto">
+        <img id="modal-image-target" src="" alt="Ampliación pericial del daño" class="max-h-[72vh] w-auto max-w-full object-contain rounded-xl shadow-lg" />
+      </div>
+      <div class="p-3 bg-slate-900 text-xs text-slate-400 border-t border-slate-800 flex justify-between items-center">
+        <span class="text-[11px] text-slate-400 flex items-center gap-1">
+          <span class="material-symbols-outlined text-xs text-emerald-400">verified</span>
+          <span>Inspección forense CasaAlerta • Sogamoso (Boyacá)</span>
+        </span>
+        <button onclick="closeDamageImageModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all">
+          Cerrar
         </button>
       </div>
     </div>
